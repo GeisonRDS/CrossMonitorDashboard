@@ -7,13 +7,11 @@ const route = useRoute()
 
 const menuItems = [
   { icon: 'mdi-view-dashboard-variant', label: 'Dashboard', route: '/' },
-  { icon: 'mdi-server-network', label: 'Nodes', route: '/' },
   { icon: 'mdi-palette-swatch', label: 'Themes', route: '/settings' },
   { icon: 'mdi-information-variant', label: 'About', route: '/about' }
 ]
 
 function isActive(item: typeof menuItems[0]): boolean {
-  if (item.label === 'Nodes') return route.path.startsWith('/nodes')
   if (item.route === '/') return route.path === '/'
   return route.path.startsWith(item.route)
 }

@@ -3,6 +3,9 @@ import { getPublicConfig } from '../api/dashboard'
 
 export const VISUAL_SETTINGS_KEY = 'crossmonitor-dashboard-visual-settings'
 
+export type MetricChartType = 'line-glow' | 'radial-gauge' | 'bar-pulse'
+export type MetricKey = 'cpu' | 'memory' | 'disk' | 'temperature' | 'network'
+
 export interface VisualSettings {
   theme: string
   refreshSeconds: number
@@ -18,6 +21,7 @@ export interface VisualSettings {
     blur: number
     overlay: number
   }
+  metricCharts: Record<MetricKey, MetricChartType>
 }
 
 const defaultSettings: VisualSettings = {
@@ -25,7 +29,14 @@ const defaultSettings: VisualSettings = {
   refreshSeconds: 5,
   cardSize: 'normal',
   animations: { enabled: true, intensity: 'medium' },
-  background: { type: 'gradient', imagePath: '', opacity: 0.8, blur: 12, overlay: 0.5 }
+  background: { type: 'gradient', imagePath: '', opacity: 0.8, blur: 12, overlay: 0.5 },
+  metricCharts: {
+    cpu: 'radial-gauge',
+    memory: 'line-glow',
+    disk: 'bar-pulse',
+    temperature: 'line-glow',
+    network: 'line-glow'
+  }
 }
 
 const currentTheme = ref(defaultSettings.theme)
@@ -43,6 +54,10 @@ function normalizeSettings(value: Partial<VisualSettings> | null | undefined): V
     background: {
       ...defaultSettings.background,
       ...value?.background
+    },
+    metricCharts: {
+      ...defaultSettings.metricCharts,
+      ...value?.metricCharts
     }
   }
 }

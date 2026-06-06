@@ -186,9 +186,21 @@ Switch themes from the Settings page.
 
 Theme and visual preferences are stored locally in the browser under `crossmonitor-dashboard-visual-settings`. This storage contains only safe UI preferences such as theme, card size, refresh interval, animation settings, and background options. Tokens and node configuration are never stored in the frontend.
 
+Metric chart preferences are also stored in the same local key. Supported chart types are:
+
+| Type | Inspired by | Use |
+|------|-------------|-----|
+| `line-glow` | `grafico1` | Smooth history line with glow |
+| `radial-gauge` | `grafico2` | Donut/radial gauge for current value |
+| `bar-pulse` | `grafico3` | Historical vertical bars |
+
+The Settings page lets you choose a chart type for CPU, memory, disk, temperature, and network. Cards show one visual representation per metric: label, numeric value, and the selected chart.
+
 The JSON editor was removed from the UI. Local node configuration continues to live in `config/dashboard.json` on the backend host only.
 
 Visual direction is inspired by local references in `docs/design-references`: dark NOC dashboards, glass cards, strong icon contrast, neon glows, integrated charts, and a readable pixel-platformer variant. These images are references only and are not copied or loaded as external assets.
+
+The main dashboard intentionally has no top header, hero banner, or summary section above the cards. Details remain accessible by clicking the full node card; there is no separate Nodes menu item.
 
 ## Dashboard API Endpoints
 
@@ -233,6 +245,8 @@ After running Docker, open http://localhost:9590 and verify:
 - Clicking a full card opens the details page
 - Details charts render after polling history is available
 - Theme selection persists after reload
+- Chart type selection per metric persists after reload
+- Memory, CPU, disk, and temperature do not duplicate bar + chart in the same card
 - `pixel-platformer` remains available as a theme
 
 ## Security

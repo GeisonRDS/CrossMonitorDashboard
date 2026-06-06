@@ -40,6 +40,16 @@
 
 19. **Validate details charts.** CPU, memory, disk, temperature, and network history charts must render or show a clear empty-history state.
 
+20. **Do not reintroduce the Nodes menu icon/screen without explicit authorization.** Details remain accessible by clicking node cards.
+
+21. **Do not reintroduce a hero/summary section above dashboard cards.** The main dashboard should open directly on the card grid for 14" screens.
+
+22. **Do not duplicate metric visualizations in a card.** A metric may show label/value plus one selected chart type, not a separate bar and graph for the same metric.
+
+23. **Metric chart preferences must persist locally.** Store chart types per metric in `crossmonitor-dashboard-visual-settings`; never store tokens or full backend config.
+
+24. **Charts should update with history, not reset visually per polling cycle.** Avoid keys/dispose/reinit patterns that recreate ECharts unless necessary.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.

@@ -1,18 +1,37 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useTheme, type VisualSettings } from '../composables/useTheme'
+import { useTheme, type VisualSettings, type MetricKey, type MetricChartType } from '../composables/useTheme'
 import ThemeSelector from '../components/ThemeSelector.vue'
 import { getThemes } from '../api/dashboard'
 
 const { currentTheme, availableThemes, visualSettings, applyTheme, applySettings } = useTheme()
 const saved = ref(false)
+const chartTypes: Array<{ value: MetricChartType; label: string; description: string }> = [
+  { value: 'line-glow', label: 'Grafico 1', description: 'Linha com brilho' },
+  { value: 'radial-gauge', label: 'Grafico 2', description: 'Donut radial' },
+  { value: 'bar-pulse', label: 'Grafico 3', description: 'Barras verticais' }
+]
+const metricOptions: Array<{ key: MetricKey; label: string }> = [
+  { key: 'cpu', label: 'CPU' },
+  { key: 'memory', label: 'Memoria' },
+  { key: 'disk', label: 'Disco' },
+  { key: 'temperature', label: 'Temperatura' },
+  { key: 'network', label: 'Rede' }
+]
 
 const localSettings = reactive<VisualSettings>({
   theme: 'glass-blue',
   refreshSeconds: 5,
   cardSize: 'normal',
   animations: { enabled: true, intensity: 'medium' },
-  background: { type: 'gradient', imagePath: '', opacity: 0.8, blur: 12, overlay: 0.5 }
+  background: { type: 'gradient', imagePath: '', opacity: 0.8, blur: 12, overlay: 0.5 },
+  metricCharts: {
+    cpu: 'radial-gauge',
+    memory: 'line-glow',
+    disk: 'bar-pulse',
+    temperature: 'line-glow',
+    network: 'line-glow'
+  }
 })
 
 onMounted(async () => {
@@ -36,6 +55,10 @@ function saveSettings() {
   saved.value = true
   setTimeout(() => { saved.value = false }, 1300)
 }
+
+function saveImmediately() {
+  saveSettings()
+}
 </script>
 
 <template>
@@ -52,6 +75,20 @@ function saveSettings() {
         <span class="current-theme text-mono">{{ currentTheme }}</span>
       </div>
       <ThemeSelector :themes="availableThemes" :current="currentTheme" @select="selectTheme" />
+    </section>
+
+    <section class="settings-section glass-card">
+      <div class="section-title"><h3>Graficos por metrica</h3></div>
+      <div class="chart-type-grid">
+        <label v-for="metric in metricOptions" :key="metric.key" class="chart-type-row">
+          <span>{{ metric.label }}</span>
+          <select v-model="localSettings.metricCharts[metric.key]" class="setting-input" @change="saveImmediately">
+            <option v-for="type in chartTypes" :key="type.value" :value="type.value">
+              {{ type.label }} - {{ type.description }}
+            </option>
+          </select>
+        </label>
+      </div>
     </section>
 
     <section class="settings-section glass-card">
@@ -195,6 +232,29 @@ function saveSettings() {
   gap: 1rem;
   padding: 0.85rem 0;
   border-bottom: 1px solid var(--border-color);
+}
+
+.chart-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.chart-type-row {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--metric-tile-bg);
+  border: 1px solid var(--border-color);
+}
+
+.chart-type-row span {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .setting-row.stacked {
