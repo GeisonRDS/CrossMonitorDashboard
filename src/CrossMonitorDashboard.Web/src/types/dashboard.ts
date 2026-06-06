@@ -9,7 +9,7 @@ export interface NodeSummary {
   cpuUsagePercent: number
   memoryUsagePercent: number
   primaryDiskUsagePercent: number
-  primaryTemperatureCelsius: number
+  primaryTemperatureCelsius: number | null
   lastUpdateUnix: number
   lastError: string
   agentVersion: string

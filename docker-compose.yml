@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   dashboard:
     build:
@@ -7,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: crossmonitor-dashboard
     ports:
-      - "9580:9580"
+      - "9590:9580"
     volumes:
       # Mount config directory for easy editing
       - ./config:/app/config:ro
@@ -17,7 +15,7 @@ services:
       - DASHBOARD_CONFIG_PATH=/app/config/dashboard.json
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9580/health"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9580/health"]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -3,11 +3,6 @@ using CrossMonitorDashboard.Api.Models;
 using CrossMonitorDashboard.Api.Services;
 
 var vueDistPath = Environment.GetEnvironmentVariable("DASHBOARD_WEB_ROOT");
-if (!string.IsNullOrEmpty(vueDistPath) && Directory.Exists(vueDistPath))
-{
-    Environment.CurrentDirectory = vueDistPath;
-}
-
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,

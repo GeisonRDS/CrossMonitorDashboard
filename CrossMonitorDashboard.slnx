@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CrossMonitorDashboard.Api/CrossMonitorDashboard.Api.csproj" />
+    <Project Path="src/CrossMonitorDashboard.Tests/CrossMonitorDashboard.Tests.csproj" />
+  </Folder>
+</Solution>

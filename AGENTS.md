@@ -22,6 +22,14 @@
 
 10. **No database in first version.** Use in-memory state with history.
 
+11. **Models must match the real CrossMonitor Agent JSON.** Do not invent simplified contracts.
+
+12. **`/api/v1/system` contains metrics.** Agent, host, CPU, memory, disks, network, temperatures, errors, and timestamp come from this endpoint.
+
+13. **`/api/v1/status` contains collector state only.** It has ready/snapshot/interval/collectors; it does not have CPU, memory, disks, network, or temperatures.
+
+14. **`/api/v1/version` contains version metadata.** Name, version, API version, build commit/date, and Go version belong here.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.
@@ -51,6 +59,10 @@
 7. No merge without authorization.
 8. Before commit and merge, ensure working tree is clean.
 9. Do not merge to main with pending files.
+
+10. Before concluding Docker work, run `docker compose up -d --build` and validate `/health`, `/api/dashboard/nodes`, and `/api/dashboard/summary` on external port `9590`.
+
+11. Keep `config/dashboard.json` ignored and never stage it.
 
 ## Project Structure
 

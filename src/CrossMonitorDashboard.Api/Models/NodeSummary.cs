@@ -12,7 +12,7 @@ public record NodeSummary
     public double CpuUsagePercent { get; init; }
     public double MemoryUsagePercent { get; init; }
     public double PrimaryDiskUsagePercent { get; init; }
-    public double PrimaryTemperatureCelsius { get; init; }
+    public double? PrimaryTemperatureCelsius { get; init; }
     public long LastUpdateUnix { get; init; }
     public string LastError { get; init; } = "";
     public string AgentVersion { get; init; } = "";

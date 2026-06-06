@@ -57,7 +57,14 @@ const lastUpdate = computed(() => {
 })
 
 const tempDisplay = computed(() => {
-  return props.node.primaryTemperatureCelsius ? `${Math.round(props.node.primaryTemperatureCelsius)}°C` : '--'
+  return props.node.primaryTemperatureCelsius !== null && props.node.primaryTemperatureCelsius !== undefined
+    ? `${Math.round(props.node.primaryTemperatureCelsius)}°C`
+    : '--'
+})
+
+const tempBarWidth = computed(() => {
+  const temperature = props.node.primaryTemperatureCelsius ?? 0
+  return `${Math.min(Math.max(temperature, 0), 100)}%`
 })
 
 function goToDetails() {
@@ -116,7 +123,7 @@ function goToDetails() {
           <span class="stat-value">{{ tempDisplay }}</span>
         </div>
         <div class="temp-indicator">
-          <div class="temp-bar" :style="{ width: Math.min((node.primaryTemperatureCelsius / 100) * 100, 100) + '%' }"></div>
+          <div class="temp-bar" :style="{ width: tempBarWidth }"></div>
         </div>
       </div>
     </div>

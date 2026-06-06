@@ -38,10 +38,15 @@ public class DashboardService
         var offline = total - online;
         var warning = nodes.Count(n => n.Status == "warning");
         var critical = nodes.Count(n => n.Status == "critical");
-        var avgCpu = nodes.Where(n => n.Online).Average(n => n.CpuUsagePercent);
-        var avgMem = nodes.Where(n => n.Online).Average(n => n.MemoryUsagePercent);
-        var highestDisk = nodes.Where(n => n.Online).Select(n => n.PrimaryDiskUsagePercent).DefaultIfEmpty(0).Max();
-        var highestTemp = nodes.Where(n => n.Online).Select(n => n.PrimaryTemperatureCelsius).DefaultIfEmpty(0).Max();
+        var onlineNodes = nodes.Where(n => n.Online).ToList();
+        var avgCpu = onlineNodes.Select(n => n.CpuUsagePercent).DefaultIfEmpty(0).Average();
+        var avgMem = onlineNodes.Select(n => n.MemoryUsagePercent).DefaultIfEmpty(0).Average();
+        var highestDisk = onlineNodes.Select(n => n.PrimaryDiskUsagePercent).DefaultIfEmpty(0).Max();
+        var highestTemp = onlineNodes
+            .Where(n => n.PrimaryTemperatureCelsius.HasValue)
+            .Select(n => n.PrimaryTemperatureCelsius!.Value)
+            .DefaultIfEmpty(0)
+            .Max();
 
         return new DashboardSummary
         {

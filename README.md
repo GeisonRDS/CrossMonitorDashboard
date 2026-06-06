@@ -2,6 +2,8 @@
 
 Cross-platform distributed system monitoring dashboard. Real-time monitoring of CPU, memory, disk, network, and temperature across multiple nodes.
 
+CrossMonitorDashboard is separate from CrossMonitor Agent. The Agent runs on monitored machines and exposes `/api/v1/*`; the Dashboard runs centrally and exposes only `/api/dashboard/*` to the browser.
+
 ## Architecture
 
 ```
@@ -9,7 +11,7 @@ Browser (14" Ubuntu Desktop / any device)
         |
         | HTTP (no direct agent access)
         v
-CrossMonitorDashboard (.NET 8 + Vue 3)
+CrossMonitorDashboard (.NET 8 + Vue 3, external port 9590)
         |
         | HTTPS with Bearer Token (internal)
         v
@@ -51,7 +53,7 @@ The dashboard is configured to monitor these machines:
 cp config/dashboard.example.json config/dashboard.json
 ```
 
-2. Edit `config/dashboard.json` and replace placeholder tokens with real tokens:
+2. Edit local `config/dashboard.json` and replace placeholder tokens with real tokens:
 
 ```json
 {
@@ -75,7 +77,7 @@ cp config/dashboard.example.json config/dashboard.json
 
 3. The backend reads this file and uses tokens internally.
 
-**Never commit `config/dashboard.json` with real tokens.**
+**Never commit `config/dashboard.json` with real tokens.** Only `config/dashboard.example.json` is versioned.
 
 ## Token Protection
 
@@ -143,11 +145,24 @@ docker compose up -d
 docker compose logs -f
 ```
 
-Access: http://localhost:9580
+Access: http://localhost:9590
 
 ### Configuration with Docker
 
 Edit `config/dashboard.json` on the host. Docker mounts this file as read-only.
+
+The container listens internally on `9580`; Docker Compose publishes it externally as `9590` to avoid conflicts with CrossMonitor Agents that use `9580`.
+
+### Validate Runtime
+
+```bash
+curl http://localhost:9590/health
+curl http://localhost:9590/api/dashboard/nodes
+curl http://localhost:9590/api/dashboard/summary
+curl http://localhost:9590/api/dashboard/themes
+```
+
+On PowerShell, use `Invoke-RestMethod` if `curl` is aliased.
 
 ### Stop
 
@@ -181,6 +196,18 @@ Switch themes from the Settings page.
 | GET    | `/api/dashboard/config/public`     | Safe visual config (no tokens) |
 | POST   | `/api/dashboard/config/validate`   | Validate JSON config           |
 | GET    | `/health`                          | Health check                   |
+
+## CrossMonitor Agent Contract
+
+The dashboard consumes these protected Agent endpoints internally with `Authorization: Bearer <node-token>`:
+
+| Agent Endpoint | Dashboard Use |
+|----------------|---------------|
+| `/api/v1/system` | Agent, host, CPU, memory, disks, network, temperatures, errors, timestamp |
+| `/api/v1/status` | Readiness, snapshot timing, collector status/errors |
+| `/api/v1/version` | Agent name/version/API/build metadata |
+
+Metrics come from `/api/v1/system`. `/api/v1/status` does not contain CPU, memory, disk, network, or temperature metrics.
 
 ## Frontend Pages
 

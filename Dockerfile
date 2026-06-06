@@ -20,6 +20,10 @@ RUN dotnet publish src/CrossMonitorDashboard.Api/CrossMonitorDashboard.Api.cspro
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy Vue dist to be served by .NET backend
 COPY --from=vue-build /src/dist ./wwwroot
 
@@ -36,6 +40,6 @@ ENV DASHBOARD_CONFIG_PATH=/app/config/dashboard.json
 EXPOSE 9580
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:9580/health || exit 1
+    CMD curl --fail --silent http://localhost:9580/health > /dev/null || exit 1
 
 ENTRYPOINT ["dotnet", "CrossMonitorDashboard.Api.dll"]
