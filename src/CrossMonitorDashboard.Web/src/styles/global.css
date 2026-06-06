@@ -277,6 +277,68 @@ select option {
   background: #1e1e2e !important;
 }
 
+[data-theme="black-white"] .glass-card {
+  border: 2px solid rgba(255,255,255,0.3);
+  box-shadow: none;
+}
+
+[data-theme="black-white"] .side-menu {
+  border-right: 2px solid rgba(255,255,255,0.3) !important;
+}
+
+[data-theme="black-white"] .metric-tile.severity-warning {
+  border-style: dashed;
+  border-width: 2px;
+}
+
+[data-theme="black-white"] .metric-tile.severity-critical {
+  border-style: solid;
+  border-width: 2px;
+}
+
+[data-theme="black-white"] .status-badge {
+  border-width: 2px !important;
+}
+
+[data-theme="black-white"] select,
+[data-theme="black-white"] input {
+  border-width: 2px !important;
+  background: #000000 !important;
+}
+
+[data-theme="black-white"] select option {
+  background: #000000 !important;
+}
+
+[data-theme="black-white"] .menu-item.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+[data-theme="terminal-mono"] .metric-tile.severity-warning {
+  border-style: dashed;
+  border-width: 1.5px;
+}
+
+[data-theme="terminal-mono"] .metric-tile.severity-critical {
+  border-width: 2px;
+}
+
+[data-theme="terminal-blue"] .metric-tile.severity-warning {
+  border-style: dashed;
+  border-width: 1.5px;
+}
+
+[data-theme="terminal-red"] .metric-tile.severity-warning {
+  border-style: dashed;
+  border-width: 1.5px;
+}
+
+[data-theme="terminal-green-matte"] .metric-tile.severity-warning {
+  border-style: dashed;
+  border-width: 1.5px;
+}
+
 @media (max-width: 520px) {
   .grid-responsive {
     grid-template-columns: 1fr;

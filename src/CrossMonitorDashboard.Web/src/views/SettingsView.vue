@@ -45,7 +45,7 @@ onMounted(async () => {
       'glass-blue', 'neon-green', 'cyber-red', 'terminal-green', 'pixel-platformer',
       'terminal-mono', 'terminal-blue', 'terminal-red', 'terminal-green-matte',
       'material-slate', 'material-graphite', 'material-ocean', 'material-forest',
-      'hacker-prompt', 'code-editor'
+      'hacker-prompt', 'code-editor', 'black-white'
     ]
   }
   Object.assign(localSettings, JSON.parse(JSON.stringify(visualSettings.value)))

@@ -172,7 +172,7 @@ docker compose down
 
 ## Themes
 
-Available themes (15 total):
+Available themes (16 total):
 
 | Theme               | Description                                      |
 |---------------------|--------------------------------------------------|
@@ -191,8 +191,11 @@ Available themes (15 total):
 | material-forest     | Material Design dark forest, neutral green       |
 | hacker-prompt       | Hacker terminal with prompts, black/green        |
 | code-editor         | Code editor style (IDE dark, syntax colors)      |
+| black-white         | Pure black & white, no other colors              |
 
 Switch themes from the Settings page. Themes use CSS custom properties and include full support for cards, sidebar, selects, charts, and the details screen.
+
+Restricted-palette themes (`terminal-mono`, `terminal-blue`, `terminal-red`, `terminal-green-matte`, `black-white`) use only their allowed colors for all UI elements including status indicators. Warning and critical states are differentiated by border style and weight rather than out-of-palette colors.
 
 Theme and visual preferences are stored locally in the browser under `crossmonitor-dashboard-visual-settings`. This storage contains only safe UI preferences such as theme, card size, refresh interval, animation settings, background options, and chart type preferences. Tokens and node configuration are never stored in the frontend.
 

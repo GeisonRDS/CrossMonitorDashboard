@@ -96,18 +96,17 @@ function navigate(item: typeof menuItems[0]) {
 .menu-icon {
   position: relative;
   z-index: 2;
-  display: block;
-  color: currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
   opacity: 1;
-  filter: drop-shadow(0 0 5px rgba(255,255,255,0.18));
 }
 
-.menu-icon :deep(svg),
-.menu-icon :deep(path) {
-  color: currentColor;
+.menu-icon svg {
+  display: block;
   fill: currentColor;
-  stroke: currentColor;
-  opacity: 1;
+  stroke: none;
 }
 
 .menu-item:hover {

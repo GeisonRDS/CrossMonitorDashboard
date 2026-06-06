@@ -90,7 +90,19 @@
 
 44. **Background images must be from `public/backgrounds/` only.** External URLs are rejected by `sanitizeImagePath()`. Register new backgrounds in `src/config/backgrounds.ts`.
 
-45. **Total theme count is 15.** Do not remove existing themes. New themes added: `terminal-mono`, `terminal-blue`, `terminal-red`, `terminal-green-matte`, `material-slate`, `material-graphite`, `material-ocean`, `material-forest`, `hacker-prompt`, `code-editor`.
+45. **Total theme count is 16.** Do not remove existing themes. New themes added: `terminal-mono`, `terminal-blue`, `terminal-red`, `terminal-green-matte`, `material-slate`, `material-graphite`, `material-ocean`, `material-forest`, `hacker-prompt`, `code-editor`, `black-white`.
+
+46. **Icons must use `var(--text-primary)` or `var(--text-secondary)` colors.** Never rely on `:deep()` or `filter: drop-shadow()` for SVG icons. Use `fill: currentColor` and `stroke: none` directly on SVG elements.
+
+47. **Restricted-palette themes must use only their allowed colors.**
+    - `terminal-mono`: black, gray, white only
+    - `terminal-blue`: black, gray, blue only
+    - `terminal-red`: black, gray, red only
+    - `terminal-green-matte`: black, gray, green only
+    - `black-white`: black and white only
+    Success/warning/critical values must use only palette colors. Use border style/weight to differentiate, not out-of-palette colors.
+
+48. **`black-white` theme must use pure black and white.** No gray tones allowed as accent/primary/secondary. Minimal gray for text-muted is acceptable for readability.
 
 ## Development Workflow
 

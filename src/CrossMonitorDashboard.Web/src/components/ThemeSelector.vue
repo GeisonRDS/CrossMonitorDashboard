@@ -149,6 +149,13 @@ const { translate } = useI18n()
   background-size: auto 20px, auto;
 }
 
+.theme-card[data-preview="black-white"] .theme-preview {
+  background:
+    radial-gradient(circle at 20% 50%, #ffffff 2px, transparent 2px),
+    linear-gradient(135deg, #000000, #222222 50%, #ffffff);
+  background-size: 8px 8px, auto;
+}
+
 .theme-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-glow);
