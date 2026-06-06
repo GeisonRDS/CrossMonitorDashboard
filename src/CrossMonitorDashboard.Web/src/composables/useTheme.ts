@@ -43,6 +43,13 @@ const currentTheme = ref(defaultSettings.theme)
 const availableThemes = ref<string[]>([])
 const visualSettings = ref<VisualSettings>({ ...defaultSettings })
 
+function sanitizeImagePath(path: string): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return ''
+  if (path.startsWith('/')) return path
+  return ''
+}
+
 function normalizeSettings(value: Partial<VisualSettings> | null | undefined): VisualSettings {
   return {
     ...defaultSettings,
@@ -53,7 +60,8 @@ function normalizeSettings(value: Partial<VisualSettings> | null | undefined): V
     },
     background: {
       ...defaultSettings.background,
-      ...value?.background
+      ...value?.background,
+      imagePath: sanitizeImagePath(value?.background?.imagePath ?? '')
     },
     metricCharts: {
       ...defaultSettings.metricCharts,
@@ -83,6 +91,8 @@ function updateDocument(settings: VisualSettings) {
   document.documentElement.style.setProperty('--custom-bg-opacity', String(settings.background.opacity))
   document.documentElement.style.setProperty('--custom-bg-blur', `${settings.background.blur}px`)
   document.documentElement.style.setProperty('--custom-bg-overlay', String(settings.background.overlay))
+  const imgPath = sanitizeImagePath(settings.background.imagePath)
+  document.documentElement.style.setProperty('--custom-bg-image', imgPath ? `url(${imgPath})` : 'none')
 }
 
 export function useTheme() {

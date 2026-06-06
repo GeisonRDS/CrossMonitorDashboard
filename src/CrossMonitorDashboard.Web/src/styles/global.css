@@ -193,6 +193,31 @@ img {
   opacity: 0.46;
 }
 
+select,
+input[type="text"],
+input[type="number"] {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  padding: 0.52rem 0.75rem;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+select:focus,
+input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--glow-accent);
+}
+
+select option {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
 [data-theme="terminal-green"] .glass-card {
   box-shadow: 0 0 0 1px rgba(51,255,51,0.06), inset 0 0 22px rgba(51,255,51,0.04);
 }

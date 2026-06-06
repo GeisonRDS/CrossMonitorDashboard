@@ -144,8 +144,13 @@ function saveImmediately() {
         </select>
       </div>
       <div v-if="localSettings.background.type === 'image'" class="setting-row">
-        <label>Image Path</label>
-        <input v-model="localSettings.background.imagePath" placeholder="/images/bg.jpg" class="setting-input" />
+        <label>Background Image</label>
+        <select v-model="localSettings.background.imagePath" class="setting-input">
+          <option value="">Nenhum (usar gradiente)</option>
+          <option value="/backgrounds/default-dark.jpg">Default Dark</option>
+          <option value="/backgrounds/default-blue.jpg">Default Blue</option>
+        </select>
+        <p class="setting-hint">Adicione imagens em <code>public/backgrounds/</code> (jpg, png, webp, max 2MB)</p>
       </div>
       <div class="setting-row">
         <label>Opacity ({{ Math.round(localSettings.background.opacity * 100) }}%)</label>
@@ -279,6 +284,22 @@ function saveImmediately() {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   min-width: 150px;
+}
+
+.setting-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.setting-hint code {
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.65rem;
 }
 
 .setting-slider {

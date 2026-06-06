@@ -68,6 +68,14 @@
 
 33. **Causer metric highlighting.** When a metric triggers critical/warning, its tile gets `is-causer` class with stronger border/glow, and a pulsing status chip (CRITICAL/WARNING) appears next to its value.
 
+34. **Card status shows only ONLINE or OFFLINE text.** Badge color may still derive from `node.status` for visual severity, but text must never show CRITICAL or WARNING. An inline SVG alert icon appears to the left of ONLINE when any detail item (visible or not) needs attention.
+
+35. **Card border and tile colors only react to visible metrics.** CPU, TEMP, RAM, DISCO, DOWNLOAD, UPLOAD thresholds control the card visual state; auxiliary sensors (non-primary disks/temperatures, collector errors, system errors) trigger the alert icon in the badge but do NOT change the card border or tile colors.
+
+36. **Background images must be local only.** Use files from `public/backgrounds/` (jpg, png, webp, max 2MB). External URLs are stripped by `sanitizeImagePath` in `useTheme.ts`. Never load background images from external URLs.
+
+37. **Select/option elements must be legible in all themes.** Apply `--bg-card`/`--border-color`/`--text-primary` with `!important` in global CSS. Every theme's colors must produce readable select elements and dropdown options.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.

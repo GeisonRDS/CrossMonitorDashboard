@@ -84,11 +84,21 @@ const statusClass = computed(() => {
 
 const statusLabel = computed(() => {
   if (!props.node.online) return currentTheme.value === 'pixel-platformer' ? 'GAME OVER' : 'OFFLINE'
-  switch (props.node.status?.toLowerCase()) {
-    case 'critical': return 'CRITICAL'
-    case 'warning': return 'WARNING'
-    default: return 'ONLINE'
-  }
+  return 'ONLINE'
+})
+
+const hasDetailsAlert = computed(() => {
+  const d = props.details
+  const cpu = props.node.cpuUsagePercent
+  const memory = props.node.memoryUsagePercent
+  if (cpu >= 75 || memory >= 75) return true
+  if (props.node.primaryDiskUsagePercent >= 80) return true
+  if ((props.node.primaryTemperatureCelsius ?? 0) >= 70) return true
+  if (d?.disks.some(item => item.usagePercent >= 80)) return true
+  if (d?.temperatures.some(item => item.celsius >= 70)) return true
+  if (d?.collectorStatuses.some(item => item.hasError)) return true
+  if (props.node.lastError) return true
+  return false
 })
 
 const metricLabels = computed(() => currentTheme.value === 'pixel-platformer'
@@ -199,6 +209,11 @@ function handleKeydown(event: KeyboardEvent) {
       <div class="status-stack">
         <span class="status-badge" :class="statusClass">
           <span class="status-light"></span>
+          <svg v-if="hasDetailsAlert && props.node.online" class="alert-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <path d="M8 1L1 15h14L8 1z" fill="currentColor"/>
+            <path d="M8 5v4" stroke="var(--bg-primary)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+            <circle cx="8" cy="11.5" r="1" fill="var(--bg-primary)"/>
+          </svg>
           {{ statusLabel }}
         </span>
       </div>
@@ -352,6 +367,11 @@ function handleKeydown(event: KeyboardEvent) {
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 12px currentColor;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  display: block;
 }
 
 .metrics-grid {
