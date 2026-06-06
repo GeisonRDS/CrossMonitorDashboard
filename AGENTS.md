@@ -54,6 +54,20 @@
 
 26. **Sidebar icons must remain visible in every theme.** Keep high contrast for icon SVG color/fill/stroke and do not reintroduce Nodes or JSON editor menu items.
 
+27. **Line and bar chart windows align right.** Empty positions stay on the left, the newest sample appears on the far right, and older samples shift left.
+
+28. **Node cards use six metric blocks.** Keep CPU, TEMP, RAM, DISCO, DOWNLOAD, and UPLOAD visible when working on card layout.
+
+29. **Warning and critical cards must explain the cause.** Highlight the metric responsible for warning/critical when it can be calculated from dashboard data.
+
+30. **Chart right-alignment uses `alignRight` function in `utils/chart.ts`.** Line and bar charts always have 10 fixed positions. Empty positions are null, actual data is right-aligned. Newest point always at far right.
+
+31. **Line chart rendering rules.** `connectNulls: false`, `smooth` enabled only when >= 2 non-null points, `showSymbol: true` always, `areaStyle` hidden when < 2 non-null points.
+
+32. **Card status reason priority.** CPU >= 90, RAM >= 90, any disk >= 90, any temperature >= 85 → critical. CPU >= 75, RAM >= 75, any disk >= 80, any temperature >= 70, collector errors, system errors → warning. All checks use the full list from node details, not just primary values.
+
+33. **Causer metric highlighting.** When a metric triggers critical/warning, its tile gets `is-causer` class with stronger border/glow, and a pulsing status chip (CRITICAL/WARNING) appears next to its value.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.
@@ -106,6 +120,7 @@ CrossMonitorDashboard/
 │           ├── stores/              # Reactive state
 │           ├── styles/              # CSS themes and globals
 │           ├── types/               # TypeScript interfaces
+│           ├── utils/               # Utility functions (chart alignment, etc.)
 │           └── views/               # Page components
 ├── config/
 │   └── dashboard.example.json       # Example config with placeholders

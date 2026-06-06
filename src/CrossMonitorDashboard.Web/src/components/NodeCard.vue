@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { NodeSummary } from '../types/dashboard'
-import { useTheme, type MetricKey } from '../composables/useTheme'
+import type { NodeSummary, NodeDetails, HistoryDataPoint } from '../types/dashboard'
+import { useTheme, type MetricKey, type MetricChartType } from '../composables/useTheme'
 import MiniChart from './MiniChart.vue'
 
-const props = defineProps<{ node: NodeSummary }>()
+const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null }>()
 const router = useRouter()
 const { currentTheme, visualSettings } = useTheme()
 
-const histories = {
+const fallbackHistories = {
   cpu: ref<number[]>([]),
   memory: ref<number[]>([]),
   disk: ref<number[]>([]),
@@ -20,27 +20,58 @@ function clamp(value: number, max = 100) {
   return Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0))
 }
 
-function pushPoint(target: typeof histories.cpu, value: number, max = 100) {
+function pushPoint(target: typeof fallbackHistories.cpu, value: number, max = 100) {
   const next = [...target.value, Math.round(clamp(value, max) * 10) / 10]
-  target.value = next.slice(Math.max(0, next.length - 28))
+  target.value = next.slice(-30)
 }
 
 watch(
-  () => [
-    props.node.cpuUsagePercent,
-    props.node.memoryUsagePercent,
-    props.node.primaryDiskUsagePercent,
-    props.node.primaryTemperatureCelsius,
-    props.node.lastUpdateUnix
-  ] as const,
+  () => [props.node.cpuUsagePercent, props.node.memoryUsagePercent, props.node.primaryDiskUsagePercent, props.node.primaryTemperatureCelsius, props.node.lastUpdateUnix] as const,
   ([cpu, memory, disk, temperature]) => {
-    pushPoint(histories.cpu, cpu)
-    pushPoint(histories.memory, memory)
-    pushPoint(histories.disk, disk)
-    pushPoint(histories.temperature, temperature ?? 0, 120)
+    pushPoint(fallbackHistories.cpu, cpu)
+    pushPoint(fallbackHistories.memory, memory)
+    pushPoint(fallbackHistories.disk, disk)
+    pushPoint(fallbackHistories.temperature, temperature ?? 0, 120)
   },
   { immediate: true }
 )
+
+const history = computed(() => props.history ?? [])
+
+function historySeries(field: keyof Pick<HistoryDataPoint, 'cpuPercent' | 'memoryPercent' | 'diskPercent' | 'temperatureCelsius'>, fallback: number[]) {
+  const values = history.value.map(point => point[field])
+  return values.length > 0 ? values : fallback
+}
+
+function rates(field: 'rxBytes' | 'txBytes') {
+  const points = history.value
+  if (points.length < 2) return []
+  const result: number[] = []
+  for (let index = 1; index < points.length; index++) {
+    const previous = points[index - 1]
+    const current = points[index]
+    const seconds = Math.max(1, current.timestampUnix - previous.timestampUnix)
+    result.push(Math.max(0, (current[field] - previous[field]) / seconds))
+  }
+  return result
+}
+
+function formatRate(bytesPerSecond: number | null) {
+  if (bytesPerSecond == null || !Number.isFinite(bytesPerSecond)) return '--'
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s']
+  let value = bytesPerSecond
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
+}
+
+const downloadRates = computed(() => rates('rxBytes'))
+const uploadRates = computed(() => rates('txBytes'))
+const downloadRate = computed(() => downloadRates.value.at(-1) ?? null)
+const uploadRate = computed(() => uploadRates.value.at(-1) ?? null)
 
 const statusClass = computed(() => {
   if (!props.node.online) return 'status-offline'
@@ -54,64 +85,74 @@ const statusClass = computed(() => {
 const statusLabel = computed(() => {
   if (!props.node.online) return currentTheme.value === 'pixel-platformer' ? 'GAME OVER' : 'OFFLINE'
   switch (props.node.status?.toLowerCase()) {
-    case 'critical': return currentTheme.value === 'pixel-platformer' ? 'BOSS' : 'CRITICAL'
-    case 'warning': return currentTheme.value === 'pixel-platformer' ? 'LOW HP' : 'WARNING'
-    default: return currentTheme.value === 'pixel-platformer' ? 'READY' : 'ONLINE'
+    case 'critical': return 'CRITICAL'
+    case 'warning': return 'WARNING'
+    default: return 'ONLINE'
   }
 })
 
 const metricLabels = computed(() => currentTheme.value === 'pixel-platformer'
-  ? { cpu: 'HP', memory: 'MP', disk: 'BAG', temperature: 'HEAT' }
-  : { cpu: 'CPU', memory: 'RAM', disk: 'DISK', temperature: 'TEMP' })
+  ? { cpu: 'HP', temperature: 'HEAT', memory: 'MP', disk: 'BAG', download: 'DOWN', upload: 'UP' }
+  : { cpu: 'CPU', temperature: 'TEMP', memory: 'RAM', disk: 'DISCO', download: 'DOWNLOAD', upload: 'UPLOAD' })
+
+function visibleSeverity(metric: 'cpu' | 'memory' | 'disk' | 'temperature') {
+  const values = {
+    cpu: props.node.cpuUsagePercent,
+    memory: props.node.memoryUsagePercent,
+    disk: Math.max(props.node.primaryDiskUsagePercent, ...(props.details?.disks.map(disk => disk.usagePercent) ?? [])),
+    temperature: Math.max(props.node.primaryTemperatureCelsius ?? 0, ...(props.details?.temperatures.map(temp => temp.celsius) ?? []))
+  }
+  const value = values[metric]
+  if (metric === 'disk') return value >= 90 ? 'critical' : value >= 80 ? 'warning' : 'normal'
+  if (metric === 'temperature') return value >= 85 ? 'critical' : value >= 70 ? 'warning' : 'normal'
+  return value >= 90 ? 'critical' : value >= 75 ? 'warning' : 'normal'
+}
+
+function findIssues() {
+  const cpu = props.node.cpuUsagePercent
+  const memory = props.node.memoryUsagePercent
+  const diskCritical = props.details?.disks.find(item => item.usagePercent >= 90) ?? (props.node.primaryDiskUsagePercent >= 90 ? { mountPoint: 'principal', usagePercent: props.node.primaryDiskUsagePercent } : null)
+  const warningDisk = props.details?.disks.find(item => item.usagePercent >= 80) ?? (props.node.primaryDiskUsagePercent >= 80 ? { mountPoint: 'principal', usagePercent: props.node.primaryDiskUsagePercent } : null)
+  const tempCritical = props.details?.temperatures.find(item => item.celsius >= 85) ?? ((props.node.primaryTemperatureCelsius ?? 0) >= 85 ? { sensor: 'principal', celsius: props.node.primaryTemperatureCelsius ?? 0 } : null)
+  const warningTemp = props.details?.temperatures.find(item => item.celsius >= 70) ?? ((props.node.primaryTemperatureCelsius ?? 0) >= 70 ? { sensor: 'principal', celsius: props.node.primaryTemperatureCelsius ?? 0 } : null)
+  const collector = props.details?.collectorStatuses.find(item => item.hasError)
+
+  if (cpu >= 90) return { metric: 'cpu', text: 'CPU acima de 90%', level: 'critical' as const }
+  if (memory >= 90) return { metric: 'memory', text: 'RAM acima de 90%', level: 'critical' as const }
+  if (diskCritical) return { metric: 'disk', text: `Disco ${diskCritical.mountPoint} acima de 90%`, level: 'critical' as const }
+  if (tempCritical) return { metric: 'temperature', text: `Temperatura ${tempCritical.sensor} acima de 85°C`, level: 'critical' as const }
+  if (cpu >= 75) return { metric: 'cpu', text: 'CPU acima de 75%', level: 'warning' as const }
+  if (memory >= 75) return { metric: 'memory', text: 'RAM acima de 75%', level: 'warning' as const }
+  if (warningDisk) return { metric: 'disk', text: `Disco ${warningDisk.mountPoint} acima de 80%`, level: 'warning' as const }
+  if (warningTemp) return { metric: 'temperature', text: `Temperatura ${warningTemp.sensor} acima de 70°C`, level: 'warning' as const }
+  if (collector) return { metric: null, text: `Erro no coletor ${collector.name}`, level: 'warning' as const }
+  if (props.node.lastError) return { metric: null, text: props.node.lastError, level: 'warning' as const }
+  return { metric: null, text: 'Sem alertas ativos', level: 'ok' as const }
+}
+
+const statusReason = computed(() => findIssues().text)
+const causerMetricId = computed(() => findIssues().metric)
 
 const cardStyle = computed(() => {
   const severity = props.node.online ? props.node.status : 'offline'
   const token = severity === 'critical' ? 'critical' : severity === 'warning' ? 'warning' : severity === 'offline' ? 'offline' : 'success'
   const glow = severity === 'critical' ? 'glow-critical' : severity === 'warning' ? 'glow-warning' : severity === 'offline' ? 'glow-accent' : 'glow-success'
-  return {
-    '--node-tone': `var(--${token})`,
-    '--node-glow': `var(--${glow})`
-  }
+  return { '--node-tone': `var(--${token})`, '--node-glow': `var(--${glow})` }
 })
 
-const metrics = computed(() => [
-  {
-    key: 'cpu' as MetricKey,
-    label: metricLabels.value.cpu,
-    value: `${Math.round(props.node.cpuUsagePercent)}%`,
-    data: histories.cpu.value,
-    color: 'var(--accent)',
-    unit: '%',
-    max: 100
-  },
-  {
-    key: 'memory' as MetricKey,
-    label: metricLabels.value.memory,
-    value: `${Math.round(props.node.memoryUsagePercent)}%`,
-    data: histories.memory.value,
-    color: 'var(--warning)',
-    unit: '%',
-    max: 100
-  },
-  {
-    key: 'disk' as MetricKey,
-    label: metricLabels.value.disk,
-    value: `${Math.round(props.node.primaryDiskUsagePercent)}%`,
-    data: histories.disk.value,
-    color: 'var(--success)',
-    unit: '%',
-    max: 100
-  },
-  {
-    key: 'temperature' as MetricKey,
-    label: metricLabels.value.temperature,
-    value: props.node.primaryTemperatureCelsius == null ? '--' : `${Math.round(props.node.primaryTemperatureCelsius)}°C`,
-    data: histories.temperature.value,
-    color: 'var(--critical)',
-    unit: '°',
-    max: 120
-  }
-])
+const metrics = computed(() => {
+  const networkType = visualSettings.value.metricCharts.network as MetricChartType
+  const downloadMax = Math.max(1, ...downloadRates.value)
+  const uploadMax = Math.max(1, ...uploadRates.value)
+  return [
+    { key: 'cpu' as MetricKey, id: 'cpu', label: metricLabels.value.cpu, value: `${Math.round(props.node.cpuUsagePercent)}%`, data: historySeries('cpuPercent', fallbackHistories.cpu.value), color: 'var(--accent)', unit: '%', max: 100, severity: visibleSeverity('cpu'), chartType: visualSettings.value.metricCharts.cpu },
+    { key: 'temperature' as MetricKey, id: 'temperature', label: metricLabels.value.temperature, value: props.node.primaryTemperatureCelsius == null ? '--' : `${Math.round(props.node.primaryTemperatureCelsius)}°C`, data: historySeries('temperatureCelsius', fallbackHistories.temperature.value), color: 'var(--critical)', unit: '°', max: 120, severity: visibleSeverity('temperature'), chartType: visualSettings.value.metricCharts.temperature },
+    { key: 'memory' as MetricKey, id: 'memory', label: metricLabels.value.memory, value: `${Math.round(props.node.memoryUsagePercent)}%`, data: historySeries('memoryPercent', fallbackHistories.memory.value), color: 'var(--warning)', unit: '%', max: 100, severity: visibleSeverity('memory'), chartType: visualSettings.value.metricCharts.memory },
+    { key: 'disk' as MetricKey, id: 'disk', label: metricLabels.value.disk, value: `${Math.round(props.node.primaryDiskUsagePercent)}%`, data: historySeries('diskPercent', fallbackHistories.disk.value), color: 'var(--success)', unit: '%', max: 100, severity: visibleSeverity('disk'), chartType: visualSettings.value.metricCharts.disk },
+    { key: 'network' as MetricKey, id: 'download', label: metricLabels.value.download, value: formatRate(downloadRate.value), data: downloadRates.value, color: 'var(--accent-light)', unit: '', max: downloadMax, severity: 'normal', chartType: networkType },
+    { key: 'network' as MetricKey, id: 'upload', label: metricLabels.value.upload, value: formatRate(uploadRate.value), data: uploadRates.value, color: 'var(--text-secondary)', unit: '', max: uploadMax, severity: 'normal', chartType: networkType }
+  ]
+})
 
 const lastUpdate = computed(() => {
   if (!props.node.lastUpdateUnix) return '--'
@@ -152,23 +193,29 @@ function handleKeydown(event: KeyboardEvent) {
         <h2 class="node-name">{{ node.name }}</h2>
         <p class="node-platform text-mono">{{ node.os || 'unknown' }} / {{ node.platform || 'unknown' }}</p>
       </div>
-      <span class="status-badge" :class="statusClass">
-        <span class="status-light"></span>
-        {{ statusLabel }}
-      </span>
+      <div class="status-stack">
+        <span class="status-badge" :class="statusClass">
+          <span class="status-light"></span>
+          {{ statusLabel }}
+        </span>
+        <span v-if="node.status !== 'healthy' || !node.online" class="status-reason text-mono">{{ statusReason }}</span>
+      </div>
     </div>
 
     <div class="metrics-grid">
-      <section v-for="metric in metrics" :key="metric.key" class="metric-tile">
+      <section v-for="metric in metrics" :key="metric.id" class="metric-tile" :class="[`severity-${metric.severity}`, { 'is-causer': metric.id === causerMetricId }]">
         <div class="metric-copy">
           <span class="metric-label text-mono">{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
+          <span class="metric-value-wrap">
+            <strong>{{ metric.value }}</strong>
+            <span v-if="metric.id === causerMetricId" class="metric-alert-chip" :class="statusClass">{{ statusLabel }}</span>
+          </span>
         </div>
         <MiniChart
           :data="metric.data"
           :color="metric.color"
-          :height="visualSettings.metricCharts[metric.key] === 'radial-gauge' ? 66 : 54"
-          :chart-type="visualSettings.metricCharts[metric.key]"
+          :height="metric.chartType === 'radial-gauge' ? 54 : 42"
+          :chart-type="metric.chartType"
           :unit="metric.unit"
           :max="metric.max"
         />
@@ -189,7 +236,7 @@ function handleKeydown(event: KeyboardEvent) {
   --node-tone: var(--success);
   --node-glow: var(--glow-success);
   position: relative;
-  min-height: 318px;
+  min-height: 430px;
   padding: 1rem;
   cursor: pointer;
   display: flex;
@@ -249,7 +296,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 .card-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
   gap: 0.8rem;
   align-items: start;
 }
@@ -285,6 +332,12 @@ function handleKeydown(event: KeyboardEvent) {
   white-space: nowrap;
 }
 
+.status-stack {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -300,6 +353,14 @@ function handleKeydown(event: KeyboardEvent) {
   border: 1px solid color-mix(in srgb, var(--node-tone) 44%, transparent);
 }
 
+.status-reason {
+  max-width: 150px;
+  color: var(--node-tone);
+  font-size: 0.58rem;
+  line-height: 1.25;
+  text-align: right;
+}
+
 .status-light {
   width: 7px;
   height: 7px;
@@ -311,16 +372,30 @@ function handleKeydown(event: KeyboardEvent) {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
+  gap: 0.72rem;
 }
 
 .metric-tile {
   min-width: 0;
+  min-height: 108px;
   padding: 0.68rem;
   border-radius: 14px;
   background: var(--metric-tile-bg);
   border: 1px solid rgba(255,255,255,0.055);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed), background var(--transition-speed);
+}
+
+.metric-tile.severity-warning {
+  border-color: color-mix(in srgb, var(--warning) 62%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, var(--metric-tile-bg));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 16px var(--glow-warning);
+}
+
+.metric-tile.severity-critical {
+  border-color: color-mix(in srgb, var(--critical) 68%, transparent);
+  background: color-mix(in srgb, var(--critical) 12%, var(--metric-tile-bg));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 18px var(--glow-critical);
 }
 
 .metric-copy {
@@ -328,19 +403,50 @@ function handleKeydown(event: KeyboardEvent) {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.38rem;
+  margin-bottom: 0.34rem;
 }
 
 .metric-label {
   color: var(--text-muted);
   font-size: 0.64rem;
   letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.metric-value-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .metric-copy strong {
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+}
+
+.metric-alert-chip {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  color: var(--node-tone);
+  background: color-mix(in srgb, var(--node-tone) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--node-tone) 40%, transparent);
+  animation: chip-pulse 2s ease-in-out infinite;
+}
+
+@keyframes chip-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.metric-tile.is-causer {
+  border-color: color-mix(in srgb, var(--node-tone) 60%, transparent);
+  background: color-mix(in srgb, var(--node-tone) 14%, var(--metric-tile-bg));
 }
 
 .node-error {
@@ -377,8 +483,17 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 @media (max-width: 390px) {
-  .metrics-grid {
+  .metrics-grid,
+  .card-header {
     grid-template-columns: 1fr;
+  }
+
+  .status-stack {
+    justify-items: start;
+  }
+
+  .status-reason {
+    text-align: left;
   }
 }
 </style>

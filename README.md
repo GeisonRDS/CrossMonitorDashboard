@@ -198,6 +198,8 @@ The Settings page lets you choose a chart type for CPU, memory, disk, temperatur
 
 Line and bar charts display a sliding visual window of the latest 10 points. New samples enter from the right, older samples leave on the left, and radial gauges show only the current value.
 
+When fewer than 10 samples are available, line and bar charts keep empty positions on the left so the newest point still appears on the far right. Node cards use six metric blocks: CPU, TEMP, RAM, DISCO, DOWNLOAD, and UPLOAD. Warning/critical cards highlight the metric responsible when it can be inferred from dashboard data.
+
 The JSON editor was removed from the UI. Local node configuration continues to live in `config/dashboard.json` on the backend host only.
 
 Visual direction is inspired by local references in `docs/design-references`: dark NOC dashboards, glass cards, strong icon contrast, neon glows, integrated charts, and a readable pixel-platformer variant. These images are references only and are not copied or loaded as external assets.

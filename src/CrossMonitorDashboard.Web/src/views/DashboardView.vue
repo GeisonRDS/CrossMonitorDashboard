@@ -22,7 +22,13 @@ const store = useDashboardStore()
     </div>
 
     <div v-else class="grid-responsive node-grid">
-      <NodeCard v-for="node in store.nodes.value" :key="node.id" :node="node" />
+      <NodeCard
+        v-for="node in store.nodes.value"
+        :key="node.id"
+        :node="node"
+        :history="store.history.value.get(node.id) || []"
+        :details="store.details.value.get(node.id) || null"
+      />
     </div>
   </div>
 </template>

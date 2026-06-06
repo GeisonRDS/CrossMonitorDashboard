@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import 'echarts'
+import { MAX_VISIBLE_POINTS, alignRight } from '../utils/chart'
 
 export type MetricChartType = 'line-glow' | 'radial-gauge' | 'bar-pulse'
 
@@ -43,10 +44,20 @@ function toRgba(color: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-const chartWindowValues = computed(() => props.data.slice(-10).map(v => Math.max(0, Math.min(props.max, Number(v) || 0))))
-const radialValues = computed(() => props.data.slice(-1).map(v => Math.max(0, Math.min(props.max, Number(v) || 0))))
+
+
+const chartWindowValues = computed(() => alignRight(props.data))
+const radialValues = computed(() => {
+  const v = props.data.at(-1)
+  return v != null ? [Math.max(0, Math.min(100, Number(v) || 0))] : [0]
+})
 const values = computed(() => props.chartType === 'radial-gauge' ? radialValues.value : chartWindowValues.value)
-const latest = computed(() => values.value.at(-1) ?? 0)
+const latest = computed(() => {
+  const v = props.data.at(-1)
+  return v != null ? Math.max(0, Math.min(props.max, Number(v) || 0)) : 0
+})
+const nonNullCount = computed(() => values.value.filter(v => v != null).length)
+const hasMinData = computed(() => nonNullCount.value >= 2)
 
 const chartOptions = computed(() => {
   const color = resolveColor(props.color)
@@ -97,11 +108,13 @@ const chartOptions = computed(() => {
     return {
       animationDurationUpdate: 520,
       grid: { left: 0, right: 0, top: 4, bottom: 0 },
-      xAxis: { type: 'category', show: false, data: values.value.map((_, i) => i) },
+      xAxis: { type: 'category', show: false, data: Array.from({ length: MAX_VISIBLE_POINTS }, (_, i) => i) },
       yAxis: { type: 'value', show: false, min: 0, max: props.max },
       series: [{
         type: 'bar',
-        data: values.value,
+        data: values.value.map(value => value == null
+          ? { value: 0, itemStyle: { color: 'transparent', opacity: 0 } }
+          : value),
         barWidth: props.compact ? '54%' : '44%',
         itemStyle: {
           borderRadius: [6, 6, 2, 2],
@@ -123,17 +136,19 @@ const chartOptions = computed(() => {
   return {
     animationDurationUpdate: 560,
     grid: { left: 0, right: 0, top: 4, bottom: 2 },
-      xAxis: { type: 'category', show: false, data: values.value.map((_, i) => i) },
+    xAxis: { type: 'category', show: false, data: Array.from({ length: MAX_VISIBLE_POINTS }, (_, i) => i) },
     yAxis: { type: 'value', show: false, min: 0, max: props.max },
+    connectNulls: false,
     series: [{
       type: 'line',
       data: values.value,
-      smooth: true,
-      showSymbol: !props.compact && values.value.length < 18,
-      symbolSize: 5,
+      smooth: hasMinData.value,
+      connectNulls: false,
+      showSymbol: true,
+      symbolSize: props.compact ? 3 : 5,
       lineStyle: { width: props.compact ? 2 : 2.8, color, shadowBlur: 10, shadowColor: toRgba(props.color, 0.45) },
       itemStyle: { color },
-      areaStyle: {
+      areaStyle: hasMinData.value && nonNullCount.value >= 2 ? {
         color: {
           type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
@@ -141,7 +156,7 @@ const chartOptions = computed(() => {
             { offset: 1, color: toRgba(props.color, 0.02) }
           ]
         }
-      }
+      } : undefined
     }],
     tooltip: { show: false }
   }

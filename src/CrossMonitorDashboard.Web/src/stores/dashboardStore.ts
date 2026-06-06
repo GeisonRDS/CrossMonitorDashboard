@@ -1,11 +1,12 @@
 import { reactive, toRefs } from 'vue'
-import type { NodeSummary, DashboardSummary, HistoryDataPoint } from '../types/dashboard'
-import { getNodes, getSummary, getNodeHistory } from '../api/dashboard'
+import type { NodeSummary, NodeDetails, DashboardSummary, HistoryDataPoint } from '../types/dashboard'
+import { getNodes, getSummary, getNodeHistory, getNodeDetails } from '../api/dashboard'
 
 interface DashboardState {
   nodes: NodeSummary[]
   summary: DashboardSummary | null
   history: Map<string, HistoryDataPoint[]>
+  details: Map<string, NodeDetails>
   loading: boolean
   error: string | null
 }
@@ -14,6 +15,7 @@ const state = reactive<DashboardState>({
   nodes: [],
   summary: null,
   history: new Map(),
+  details: new Map(),
   loading: false,
   error: null
 })
@@ -26,6 +28,7 @@ export function useDashboardStore() {
       state.loading = true
       state.error = null
       state.nodes = await getNodes()
+      await fetchNodeTelemetry(state.nodes.map(node => node.id))
     } catch (e: any) {
       state.error = e.message
     } finally {
@@ -50,6 +53,18 @@ export function useDashboardStore() {
     }
   }
 
+  async function fetchNodeTelemetry(ids: string[]) {
+    await Promise.all(ids.map(async id => {
+      try {
+        const [details, history] = await Promise.all([getNodeDetails(id), getNodeHistory(id)])
+        state.details.set(id, details)
+        state.history.set(id, history)
+      } catch (e: any) {
+        state.error = e.message
+      }
+    }))
+  }
+
   function startPolling(intervalMs: number) {
     stopPolling()
     fetchNodes()
@@ -72,6 +87,7 @@ export function useDashboardStore() {
     fetchNodes,
     fetchSummary,
     fetchNodeHistory,
+    fetchNodeTelemetry,
     startPolling,
     stopPolling
   }
