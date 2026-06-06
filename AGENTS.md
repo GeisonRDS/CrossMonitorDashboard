@@ -50,6 +50,10 @@
 
 24. **Charts should update with history, not reset visually per polling cycle.** Avoid keys/dispose/reinit patterns that recreate ECharts unless necessary.
 
+25. **Line and bar charts show a 10-point visual window.** New points enter from the right and old points leave on the left; radial charts show only the current value.
+
+26. **Sidebar icons must remain visible in every theme.** Keep high contrast for icon SVG color/fill/stroke and do not reintroduce Nodes or JSON editor menu items.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.

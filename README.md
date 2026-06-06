@@ -196,6 +196,8 @@ Metric chart preferences are also stored in the same local key. Supported chart 
 
 The Settings page lets you choose a chart type for CPU, memory, disk, temperature, and network. Cards show one visual representation per metric: label, numeric value, and the selected chart.
 
+Line and bar charts display a sliding visual window of the latest 10 points. New samples enter from the right, older samples leave on the left, and radial gauges show only the current value.
+
 The JSON editor was removed from the UI. Local node configuration continues to live in `config/dashboard.json` on the backend host only.
 
 Visual direction is inspired by local references in `docs/design-references`: dark NOC dashboards, glass cards, strong icon contrast, neon glows, integrated charts, and a readable pixel-platformer variant. These images are references only and are not copied or loaded as external assets.

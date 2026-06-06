@@ -43,7 +43,9 @@ function toRgba(color: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-const values = computed(() => props.data.slice(-24).map(v => Math.max(0, Math.min(props.max, Number(v) || 0))))
+const chartWindowValues = computed(() => props.data.slice(-10).map(v => Math.max(0, Math.min(props.max, Number(v) || 0))))
+const radialValues = computed(() => props.data.slice(-1).map(v => Math.max(0, Math.min(props.max, Number(v) || 0))))
+const values = computed(() => props.chartType === 'radial-gauge' ? radialValues.value : chartWindowValues.value)
 const latest = computed(() => values.value.at(-1) ?? 0)
 
 const chartOptions = computed(() => {
@@ -121,7 +123,7 @@ const chartOptions = computed(() => {
   return {
     animationDurationUpdate: 560,
     grid: { left: 0, right: 0, top: 4, bottom: 2 },
-    xAxis: { type: 'category', show: false, data: values.value.map((_, i) => i) },
+      xAxis: { type: 'category', show: false, data: values.value.map((_, i) => i) },
     yAxis: { type: 'value', show: false, min: 0, max: props.max },
     series: [{
       type: 'line',

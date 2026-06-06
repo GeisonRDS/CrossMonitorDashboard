@@ -6,9 +6,9 @@ const router = useRouter()
 const route = useRoute()
 
 const menuItems = [
-  { icon: 'mdi-view-dashboard-variant', label: 'Dashboard', route: '/' },
-  { icon: 'mdi-palette-swatch', label: 'Themes', route: '/settings' },
-  { icon: 'mdi-information-variant', label: 'About', route: '/about' }
+  { icon: 'mdi:view-dashboard-outline', label: 'Dashboard', route: '/' },
+  { icon: 'mdi:palette-outline', label: 'Themes', route: '/settings' },
+  { icon: 'mdi:information-outline', label: 'About', route: '/about' }
 ]
 
 function isActive(item: typeof menuItems[0]): boolean {
@@ -34,7 +34,7 @@ function navigate(item: typeof menuItems[0]) {
         @click="navigate(item)"
       >
         <span class="active-beam"></span>
-        <Icon class="menu-icon" :icon="item.icon" width="25" height="25" />
+        <Icon class="menu-icon" :icon="item.icon" width="25" height="25" aria-hidden="true" />
         <span class="tooltip">{{ item.label }}</span>
       </button>
     </div>
@@ -93,7 +93,18 @@ function navigate(item: typeof menuItems[0]) {
 .menu-icon {
   position: relative;
   z-index: 2;
+  display: block;
+  color: currentColor;
+  opacity: 1;
   filter: drop-shadow(0 0 5px rgba(255,255,255,0.18));
+}
+
+.menu-icon :deep(svg),
+.menu-icon :deep(path) {
+  color: currentColor;
+  fill: currentColor;
+  stroke: currentColor;
+  opacity: 1;
 }
 
 .menu-item:hover {
