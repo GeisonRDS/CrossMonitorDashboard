@@ -7,8 +7,8 @@ const router = createRouter({
     { path: '/', name: 'dashboard', component: DashboardView },
     { path: '/nodes/:id', name: 'details', component: () => import('../views/DetailsView.vue') },
     { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
-    { path: '/editor', name: 'editor', component: () => import('../views/JsonEditorView.vue') },
-    { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') }
+    { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
 

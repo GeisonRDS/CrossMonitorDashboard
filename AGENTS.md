@@ -30,6 +30,16 @@
 
 14. **`/api/v1/version` contains version metadata.** Name, version, API version, build commit/date, and Go version belong here.
 
+15. **Keep node cards fully clickable.** The user approved opening details by clicking the whole card.
+
+16. **Do not reintroduce the JSON editor UI without explicit authorization.** Backend validation endpoints may remain if safe, but the frontend must not expose the editor screen.
+
+17. **Themes must persist locally.** Store only safe visual preferences in localStorage; never store tokens, node URLs with secrets, or full backend config.
+
+18. **Design references are inspiration only.** Images in `docs/design-references` may guide visual style but must not be copied literally or loaded from paid/external assets.
+
+19. **Validate details charts.** CPU, memory, disk, temperature, and network history charts must render or show a clear empty-history state.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.

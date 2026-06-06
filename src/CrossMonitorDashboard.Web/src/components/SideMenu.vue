@@ -6,15 +6,14 @@ const router = useRouter()
 const route = useRoute()
 
 const menuItems = [
-  { icon: 'mdi-view-dashboard', label: 'Dashboard', route: '/' },
-  { icon: 'mdi-server', label: 'Nodes', route: '/nodes' },
-  { icon: 'mdi-palette', label: 'Themes', route: '/settings' },
-  { icon: 'mdi-cog', label: 'Settings', route: '/settings' },
-  { icon: 'mdi-code-json', label: 'JSON Editor', route: '/editor' },
-  { icon: 'mdi-information', label: 'About', route: '/about' }
+  { icon: 'mdi-view-dashboard-variant', label: 'Dashboard', route: '/' },
+  { icon: 'mdi-server-network', label: 'Nodes', route: '/' },
+  { icon: 'mdi-palette-swatch', label: 'Themes', route: '/settings' },
+  { icon: 'mdi-information-variant', label: 'About', route: '/about' }
 ]
 
 function isActive(item: typeof menuItems[0]): boolean {
+  if (item.label === 'Nodes') return route.path.startsWith('/nodes')
   if (item.route === '/') return route.path === '/'
   return route.path.startsWith(item.route)
 }
@@ -25,25 +24,24 @@ function navigate(item: typeof menuItems[0]) {
 </script>
 
 <template>
-  <nav class="side-menu">
-    <div class="menu-items">
+  <nav class="side-menu" aria-label="Primary navigation">
+    <div class="menu-rail">
       <button
         v-for="item in menuItems"
-        :key="item.route"
+        :key="item.label"
         class="menu-item"
         :class="{ active: isActive(item) }"
         :title="item.label"
+        :aria-label="item.label"
         @click="navigate(item)"
       >
-        <Icon :icon="item.icon" width="24" height="24" />
+        <span class="active-beam"></span>
+        <Icon class="menu-icon" :icon="item.icon" width="25" height="25" />
         <span class="tooltip">{{ item.label }}</span>
       </button>
     </div>
-    <div class="menu-footer">
-      <div class="status-indicator" title="System Status">
-        <span class="status-dot"></span>
-        <span class="version-text">v1.0.0</span>
-      </div>
+    <div class="menu-footer" title="Dashboard online">
+      <span class="status-dot"></span>
     </div>
   </nav>
 </template>
@@ -51,69 +49,104 @@ function navigate(item: typeof menuItems[0]) {
 <style scoped>
 .side-menu {
   position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 56px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-color);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  left: 14px;
+  top: 14px;
+  bottom: 14px;
+  width: 58px;
+  z-index: 300;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  z-index: 100;
-  transition: background var(--transition-speed);
+  align-items: center;
+  padding: 12px 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-.menu-items {
+.menu-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 0;
-  gap: 4px;
+  gap: 12px;
 }
 
 .menu-item {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  border-radius: 10px;
-  transition: all var(--transition-speed);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid transparent;
+  border-radius: 15px;
+  transition: transform var(--transition-speed), color var(--transition-speed), background var(--transition-speed), box-shadow var(--transition-speed), border-color var(--transition-speed);
   cursor: pointer;
+  overflow: visible;
+}
+
+.menu-icon {
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.18));
 }
 
 .menu-item:hover {
-  background: var(--bg-card);
   color: var(--text-primary);
+  background: var(--bg-card-hover);
+  border-color: var(--border-glow);
+  transform: translateX(3px) scale(1.04);
 }
 
 .menu-item.active {
-  background: var(--bg-card-hover);
-  color: var(--accent);
-  box-shadow: 0 0 12px var(--glow-accent);
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border-color: var(--accent-light);
+  box-shadow: 0 0 18px var(--glow-accent), inset 0 1px 0 rgba(255,255,255,0.28);
+}
+
+.active-beam {
+  position: absolute;
+  left: -9px;
+  width: 3px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--accent-light);
+  box-shadow: 0 0 14px var(--glow-accent);
+  opacity: 0;
+  transform: scaleY(0.5);
+  transition: all var(--transition-speed);
+}
+
+.menu-item.active .active-beam {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .tooltip {
   position: absolute;
   left: 52px;
-  background: rgba(0, 0, 0, 0.9);
+  z-index: 10;
+  background: rgba(2, 8, 18, 0.95);
   color: var(--text-primary);
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
   font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transform: translateX(-4px);
-  transition: all 0.2s;
+  transform: translateX(-6px);
+  transition: all 0.2s ease;
   font-family: var(--font-mono);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
 }
 
 .menu-item:hover .tooltip {
@@ -122,30 +155,36 @@ function navigate(item: typeof menuItems[0]) {
 }
 
 .menu-footer {
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 0;
-}
-
-.status-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--border-color);
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 6px var(--glow-success);
+  box-shadow: 0 0 16px var(--glow-success), 0 0 2px #fff inset;
 }
 
-.version-text {
-  font-size: 8px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+@media (max-width: 760px) {
+  .side-menu {
+    left: 8px;
+    top: 8px;
+    bottom: 8px;
+    width: 50px;
+    border-radius: 18px;
+  }
+
+  .menu-item {
+    width: 38px;
+    height: 38px;
+  }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue'
+import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import NodeCard from '../components/NodeCard.vue'
 
@@ -9,41 +9,42 @@ const summaryStats = computed(() => {
   const s = store.summary.value
   if (!s) return null
   return [
-    { label: 'Total', value: s.totalNodes, color: 'var(--text-primary)' },
-    { label: 'Online', value: s.onlineNodes, color: 'var(--success)' },
-    { label: 'Offline', value: s.offlineNodes, color: 'var(--offline)' },
-    { label: 'Warning', value: s.warningNodes, color: 'var(--warning)' },
-    { label: 'Critical', value: s.criticalNodes, color: 'var(--critical)' },
-    { label: 'Avg CPU', value: `${Math.round(s.averageCpuPercent)}%`, color: 'var(--accent)' },
-    { label: 'Avg MEM', value: `${Math.round(s.averageMemoryPercent)}%`, color: 'var(--warning)' }
+    { label: 'Total', value: s.totalNodes, tone: 'var(--text-primary)' },
+    { label: 'Online', value: s.onlineNodes, tone: 'var(--success)' },
+    { label: 'Offline', value: s.offlineNodes, tone: 'var(--offline)' },
+    { label: 'Warning', value: s.warningNodes, tone: 'var(--warning)' },
+    { label: 'Critical', value: s.criticalNodes, tone: 'var(--critical)' },
+    { label: 'Avg CPU', value: `${Math.round(s.averageCpuPercent)}%`, tone: 'var(--accent)' },
+    { label: 'Avg MEM', value: `${Math.round(s.averageMemoryPercent)}%`, tone: 'var(--warning)' },
+    { label: 'Max Disk', value: `${Math.round(s.highestDiskUsagePercent)}%`, tone: 'var(--success)' },
+    { label: 'Max Temp', value: `${Math.round(s.highestTemperatureCelsius)}°`, tone: 'var(--critical)' }
   ]
-})
-
-onMounted(() => {
-  store.startPolling(5000)
-})
-
-onUnmounted(() => {
-  store.stopPolling()
 })
 </script>
 
 <template>
   <div class="dashboard">
-    <div v-if="summaryStats" class="summary-bar">
-      <div v-for="stat in summaryStats" :key="stat.label" class="summary-item">
-        <span class="summary-value" :style="{ color: stat.color }">{{ stat.value }}</span>
-        <span class="summary-label">{{ stat.label }}</span>
+    <section class="dashboard-hero glass-card">
+      <div>
+        <p class="eyebrow text-mono">CrossMonitor NOC</p>
+        <h1>Live node telemetry</h1>
+        <p class="hero-copy">CPU, memory, disk, network and temperature streamed through the dashboard backend.</p>
       </div>
-    </div>
+      <div v-if="summaryStats" class="summary-strip">
+        <div v-for="stat in summaryStats" :key="stat.label" class="summary-item">
+          <span class="summary-value" :style="{ color: stat.tone }">{{ stat.value }}</span>
+          <span class="summary-label">{{ stat.label }}</span>
+        </div>
+      </div>
+    </section>
 
-    <div v-if="store.loading.value && store.nodes.value.length === 0" class="grid-responsive">
+    <div v-if="store.loading.value && store.nodes.value.length === 0" class="grid-responsive node-grid">
       <div v-for="i in 6" :key="i" class="skeleton-card glass-card">
-        <div class="skeleton-line" style="width: 60%; height: 16px;"></div>
-        <div class="skeleton-line" style="width: 40%; height: 12px;"></div>
-        <div class="skeleton-line" style="width: 100%; height: 6px;"></div>
-        <div class="skeleton-line" style="width: 100%; height: 6px;"></div>
-        <div class="skeleton-line" style="width: 100%; height: 6px;"></div>
+        <div class="skeleton-line" style="width: 60%; height: 18px;"></div>
+        <div class="skeleton-line" style="width: 42%; height: 12px;"></div>
+        <div class="skeleton-line" style="width: 100%; height: 64px;"></div>
+        <div class="skeleton-line" style="width: 100%; height: 8px;"></div>
+        <div class="skeleton-line" style="width: 100%; height: 8px;"></div>
       </div>
     </div>
 
@@ -52,7 +53,7 @@ onUnmounted(() => {
       <button class="retry-btn" @click="store.fetchNodes()">Retry</button>
     </div>
 
-    <div v-else class="grid-responsive">
+    <div v-else class="grid-responsive node-grid">
       <NodeCard v-for="node in store.nodes.value" :key="node.id" :node="node" />
     </div>
   </div>
@@ -62,43 +63,91 @@ onUnmounted(() => {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
-.summary-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
-  backdrop-filter: blur(var(--card-blur));
+.dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.35rem;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) 1fr;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.dashboard-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 20%, var(--glow-accent), transparent 38%),
+    linear-gradient(100deg, rgba(255,255,255,0.06), transparent 55%);
+}
+
+.dashboard-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  margin-bottom: 0.4rem;
+  color: var(--accent-light);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.dashboard-hero h1 {
+  font-size: clamp(1.6rem, 3vw, 2.55rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.hero-copy {
+  max-width: 520px;
+  margin-top: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 0.65rem;
 }
 
 .summary-item {
+  min-height: 72px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 0 0.75rem;
-  border-right: 1px solid var(--border-color);
-}
-
-.summary-item:last-child {
-  border-right: none;
+  justify-content: center;
+  padding: 0.65rem;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .summary-value {
   font-family: var(--font-mono);
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 1.22rem;
+  font-weight: 800;
 }
 
 .summary-label {
-  font-size: 0.65rem;
+  margin-top: 0.28rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+}
+
+.node-grid {
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 320px), 1fr));
+  gap: 1rem;
 }
 
 .skeleton-card {
@@ -109,8 +158,8 @@ onUnmounted(() => {
 }
 
 .skeleton-line {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -122,22 +171,29 @@ onUnmounted(() => {
 
 .retry-btn {
   margin-top: 1rem;
-  padding: 0.5rem 1.5rem;
+  padding: 0.55rem 1.5rem;
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
 .retry-btn:hover {
   background: var(--accent-light);
+  box-shadow: 0 0 18px var(--glow-accent);
 }
 
-.grid-responsive {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+@media (max-width: 980px) {
+  .dashboard-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .node-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

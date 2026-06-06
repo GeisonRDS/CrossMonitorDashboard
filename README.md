@@ -184,6 +184,12 @@ Available themes:
 
 Switch themes from the Settings page.
 
+Theme and visual preferences are stored locally in the browser under `crossmonitor-dashboard-visual-settings`. This storage contains only safe UI preferences such as theme, card size, refresh interval, animation settings, and background options. Tokens and node configuration are never stored in the frontend.
+
+The JSON editor was removed from the UI. Local node configuration continues to live in `config/dashboard.json` on the backend host only.
+
+Visual direction is inspired by local references in `docs/design-references`: dark NOC dashboards, glass cards, strong icon contrast, neon glows, integrated charts, and a readable pixel-platformer variant. These images are references only and are not copied or loaded as external assets.
+
 ## Dashboard API Endpoints
 
 | Method | Endpoint                           | Description                    |
@@ -216,8 +222,18 @@ Metrics come from `/api/v1/system`. `/api/v1/status` does not contain CPU, memor
 | `/`         | Dashboard with node cards grid |
 | `/nodes/:id`| Node detail page with charts   |
 | `/settings` | Visual and display settings    |
-| `/editor`   | JSON configuration editor      |
 | `/about`    | Architecture and tech info     |
+
+## Visual Validation
+
+After running Docker, open http://localhost:9590 and verify:
+
+- Three node cards appear and update without page reload
+- Sidebar icons are clear and active/hover states are visible
+- Clicking a full card opens the details page
+- Details charts render after polling history is available
+- Theme selection persists after reload
+- `pixel-platformer` remains available as a theme
 
 ## Security
 

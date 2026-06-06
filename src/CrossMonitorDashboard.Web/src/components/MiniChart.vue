@@ -14,7 +14,27 @@ const props = withDefaults(defineProps<{
   type: 'line'
 })
 
-const chartOptions = computed(() => ({
+function resolveColor(color: string) {
+  if (!color.startsWith('var(')) return color
+  const name = color.slice(4, -1).trim()
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#3c8ce6'
+}
+
+function hexToRgba(color: string, alpha: number) {
+  const resolved = resolveColor(color)
+  if (!resolved.startsWith('#')) return resolved
+  const hex = resolved.replace('#', '')
+  const normalized = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex
+  const value = Number.parseInt(normalized, 16)
+  const r = (value >> 16) & 255
+  const g = (value >> 8) & 255
+  const b = value & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+const chartOptions = computed(() => {
+  const color = resolveColor(props.color)
+  return {
   grid: {
     left: 0,
     right: 0,
@@ -39,27 +59,28 @@ const chartOptions = computed(() => ({
     showSymbol: false,
     lineStyle: {
       width: 1.5,
-      color: props.color
+      color
     },
     areaStyle: {
       color: {
         type: 'linear',
         x: 0, y: 0, x2: 0, y2: 1,
         colorStops: [
-          { offset: 0, color: props.color + '40' },
-          { offset: 1, color: props.color + '05' }
+          { offset: 0, color: hexToRgba(props.color, 0.32) },
+          { offset: 1, color: hexToRgba(props.color, 0.03) }
         ]
       }
     },
     itemStyle: {
-      color: props.color
+      color
     },
     barWidth: '60%'
   }],
   tooltip: { show: false }
-}))
+  }
+})
 </script>
 
 <template>
-  <VChart :option="chartOptions" :style="{ height: height + 'px', width: '100%' }" autoresize />
+  <VChart :option="chartOptions" :style="{ height: props.height + 'px', width: '100%' }" autoresize />
 </template>
