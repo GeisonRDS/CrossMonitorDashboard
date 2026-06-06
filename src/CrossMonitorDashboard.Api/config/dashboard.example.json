@@ -1,0 +1,68 @@
+{
+  "visual": {
+    "theme": "glass-blue",
+    "refreshSeconds": 5,
+    "cardSize": "normal",
+    "animations": {
+      "enabled": true,
+      "intensity": "normal"
+    },
+    "background": {
+      "type": "gradient",
+      "imagePath": "",
+      "opacity": 0.35,
+      "blur": 2,
+      "overlay": 0.45
+    }
+  },
+  "nodes": [
+    {
+      "id": "m920q",
+      "name": "M920q - OPNsense",
+      "type": "firewall",
+      "url": "http://192.168.10.1:9580",
+      "token": "TOKEN_OPNSENSE",
+      "enabled": true
+    },
+    {
+      "id": "m92p",
+      "name": "M92p - Docker",
+      "type": "server",
+      "url": "http://192.168.10.10:9580",
+      "token": "TOKEN_M92P",
+      "enabled": true
+    },
+    {
+      "id": "m92p-display",
+      "name": "Tela 14 - Ubuntu Desktop",
+      "type": "display",
+      "url": "http://192.168.10.X:9580",
+      "token": "TOKEN_TELA14",
+      "enabled": true
+    },
+    {
+      "id": "c6200",
+      "name": "C6200 - CasaOS",
+      "type": "nas",
+      "url": "http://192.168.10.X:9580",
+      "token": "TOKEN_C6200",
+      "enabled": true
+    },
+    {
+      "id": "windows-dayz",
+      "name": "Windows - DayZ",
+      "type": "game-server",
+      "url": "http://192.168.10.X:9580",
+      "token": "TOKEN_WINDOWS_DAYZ",
+      "enabled": true
+    },
+    {
+      "id": "pc-gamer",
+      "name": "PC Gamer",
+      "type": "desktop",
+      "url": "http://192.168.10.X:9580",
+      "token": "TOKEN_PC_GAMER",
+      "enabled": true
+    }
+  ]
+}

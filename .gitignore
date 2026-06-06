@@ -1,0 +1,36 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.sln.docstates
+*.csproj.user
+*.dbmdl
+*.jfm
+*.rsuser
+*.vs/
+.DS_Store
+
+# Vue / Node
+node_modules/
+dist/
+*.local
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Docker
+docker-data/
+
+# Config (keep example, ignore real)
+config/dashboard.json

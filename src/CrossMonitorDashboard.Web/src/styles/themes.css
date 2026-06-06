@@ -1,0 +1,139 @@
+[data-theme="glass-blue"] {
+  --bg-primary: linear-gradient(135deg, #0a0e1a 0%, #0d1525 50%, #0f1a2e 100%);
+  --bg-card: rgba(15, 25, 50, 0.65);
+  --bg-card-hover: rgba(20, 35, 65, 0.75);
+  --bg-sidebar: rgba(10, 15, 30, 0.85);
+  --text-primary: #e0e8f0;
+  --text-secondary: #8899b0;
+  --text-muted: #556677;
+  --border-color: rgba(60, 140, 230, 0.2);
+  --border-glow: rgba(60, 140, 230, 0.4);
+  --accent: #3c8ce6;
+  --accent-light: #5aadff;
+  --accent-dark: #2a6bb5;
+  --success: #00c853;
+  --warning: #ffab00;
+  --critical: #ff1744;
+  --offline: #546e7a;
+  --glow-success: rgba(0, 200, 83, 0.3);
+  --glow-warning: rgba(255, 171, 0, 0.3);
+  --glow-critical: rgba(255, 23, 68, 0.3);
+  --glow-accent: rgba(60, 140, 230, 0.3);
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --card-radius: 16px;
+  --card-blur: 12px;
+  --transition-speed: 0.3s;
+}
+
+[data-theme="neon-green"] {
+  --bg-primary: linear-gradient(135deg, #0a0e0a 0%, #0d1a0d 50%, #0a120a 100%);
+  --bg-card: rgba(10, 30, 10, 0.7);
+  --bg-card-hover: rgba(15, 40, 15, 0.8);
+  --bg-sidebar: rgba(5, 20, 5, 0.9);
+  --text-primary: #c0e0c0;
+  --text-secondary: #70a070;
+  --text-muted: #406040;
+  --border-color: rgba(0, 255, 65, 0.2);
+  --border-glow: rgba(0, 255, 65, 0.4);
+  --accent: #00ff41;
+  --accent-light: #33ff77;
+  --accent-dark: #00cc33;
+  --success: #00ff41;
+  --warning: #ffaa00;
+  --critical: #ff0040;
+  --offline: #405540;
+  --glow-success: rgba(0, 255, 65, 0.3);
+  --glow-warning: rgba(255, 170, 0, 0.3);
+  --glow-critical: rgba(255, 0, 64, 0.3);
+  --glow-accent: rgba(0, 255, 65, 0.3);
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --card-radius: 12px;
+  --card-blur: 8px;
+  --transition-speed: 0.3s;
+}
+
+[data-theme="cyber-red"] {
+  --bg-primary: linear-gradient(135deg, #1a0a0a 0%, #2a0d0d 50%, #1a0a14 100%);
+  --bg-card: rgba(40, 10, 20, 0.7);
+  --bg-card-hover: rgba(50, 15, 25, 0.8);
+  --bg-sidebar: rgba(20, 5, 10, 0.9);
+  --text-primary: #f0d0d0;
+  --text-secondary: #b08080;
+  --text-muted: #705050;
+  --border-color: rgba(255, 30, 60, 0.2);
+  --border-glow: rgba(255, 30, 60, 0.4);
+  --accent: #ff1e3c;
+  --accent-light: #ff5566;
+  --accent-dark: #cc1528;
+  --success: #00cc88;
+  --warning: #ff8800;
+  --critical: #ff0033;
+  --offline: #554040;
+  --glow-success: rgba(0, 204, 136, 0.3);
+  --glow-warning: rgba(255, 136, 0, 0.3);
+  --glow-critical: rgba(255, 0, 51, 0.3);
+  --glow-accent: rgba(255, 30, 60, 0.3);
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --card-radius: 14px;
+  --card-blur: 10px;
+  --transition-speed: 0.3s;
+}
+
+[data-theme="terminal-green"] {
+  --bg-primary: #0c0c0c;
+  --bg-card: rgba(0, 20, 0, 0.85);
+  --bg-card-hover: rgba(0, 30, 0, 0.9);
+  --bg-sidebar: rgba(0, 10, 0, 0.95);
+  --text-primary: #33ff33;
+  --text-secondary: #22aa22;
+  --text-muted: #115511;
+  --border-color: rgba(51, 255, 51, 0.15);
+  --border-glow: rgba(51, 255, 51, 0.3);
+  --accent: #33ff33;
+  --accent-light: #66ff66;
+  --accent-dark: #22cc22;
+  --success: #33ff33;
+  --warning: #ffaa00;
+  --critical: #ff0033;
+  --offline: #333333;
+  --glow-success: rgba(51, 255, 51, 0.2);
+  --glow-warning: rgba(255, 170, 0, 0.2);
+  --glow-critical: rgba(255, 0, 51, 0.2);
+  --glow-accent: rgba(51, 255, 51, 0.2);
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-main: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --card-radius: 8px;
+  --card-blur: 4px;
+  --transition-speed: 0.2s;
+}
+
+[data-theme="pixel-platformer"] {
+  --bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --bg-card: rgba(26, 26, 46, 0.9);
+  --bg-card-hover: rgba(36, 36, 56, 0.95);
+  --bg-sidebar: rgba(16, 16, 30, 0.95);
+  --text-primary: #e0e0ff;
+  --text-secondary: #8888bb;
+  --text-muted: #555577;
+  --border-color: #ff6b35;
+  --border-glow: rgba(255, 107, 53, 0.5);
+  --accent: #ff6b35;
+  --accent-light: #ff8a5c;
+  --accent-dark: #cc5520;
+  --success: #4ecca3;
+  --warning: #ffd369;
+  --critical: #ff2e63;
+  --offline: #6c6c80;
+  --glow-success: rgba(78, 204, 163, 0.4);
+  --glow-warning: rgba(255, 211, 105, 0.4);
+  --glow-critical: rgba(255, 46, 99, 0.4);
+  --glow-accent: rgba(255, 107, 53, 0.4);
+  --font-mono: '"Press Start 2P"', 'Cascadia Code', 'Fira Code', monospace;
+  --font-main: '"Press Start 2P"', 'Cascadia Code', 'Fira Code', monospace;
+  --card-radius: 4px;
+  --card-blur: 0px;
+  --transition-speed: 0.15s;
+}

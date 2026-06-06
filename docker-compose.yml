@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crossmonitor-dashboard
+    ports:
+      - "9580:9580"
+    volumes:
+      # Mount config directory for easy editing
+      - ./config:/app/config:ro
+    environment:
+      - ASPNETCORE_URLS=http://+:9580
+      - DASHBOARD_WEB_ROOT=/app/wwwroot
+      - DASHBOARD_CONFIG_PATH=/app/config/dashboard.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9580/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
