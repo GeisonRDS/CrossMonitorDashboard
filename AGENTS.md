@@ -76,6 +76,22 @@
 
 37. **Select/option elements must be legible in all themes.** Apply `--bg-card`/`--border-color`/`--text-primary` with `!important` in global CSS. Every theme's colors must produce readable select elements and dropdown options.
 
+38. **Card shows only ONLINE or OFFLINE text.** CRITICAL/WARNING must never appear as text on the card badge.
+
+39. **Alert icon must be outside the status badge.** The SVG alert icon sits to the left of the badge, not inside it. Icon uses `var(--warning)` color and `--glow-warning` drop shadow.
+
+40. **About screen and menu must not be reintroduced without authorization.** The About route, view, and sidebar entry are removed.
+
+41. **Internationalization (i18n) is required.** All fixed UI text must use the `useI18n` composable with locale files in `src/locales/`. Supported locales: `en` and `pt`. Machine names, API data, sensor names, and technical values are not translated.
+
+42. **New themes must maintain legibility across all components.** Cards, sidebar, selects, charts, details, and the settings page must work correctly in every theme.
+
+43. **Pixel Platformer theme** must use block/pixel aesthetic with 2D platformer colors (dark base, red/orange accents), pixel fonts (`Press Start 2P`), hard shadows, and solid borders.
+
+44. **Background images must be from `public/backgrounds/` only.** External URLs are rejected by `sanitizeImagePath()`. Register new backgrounds in `src/config/backgrounds.ts`.
+
+45. **Total theme count is 15.** Do not remove existing themes. New themes added: `terminal-mono`, `terminal-blue`, `terminal-red`, `terminal-green-matte`, `material-slate`, `material-graphite`, `material-ocean`, `material-forest`, `hacker-prompt`, `code-editor`.
+
 ## Development Workflow
 
 1. Branch: `develop` for all work. Main branch is protected.

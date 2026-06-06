@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useI18n } from '../composables/useI18n'
 
 defineProps<{
   themes: string[]
@@ -9,6 +10,8 @@ defineProps<{
 const emit = defineEmits<{
   select: [theme: string]
 }>()
+
+const { translate } = useI18n()
 </script>
 
 <template>
@@ -24,7 +27,7 @@ const emit = defineEmits<{
       <span class="theme-preview"></span>
       <span class="theme-content">
         <Icon :icon="current === theme ? 'mdi-check-circle' : 'mdi-palette-swatch'" width="20" height="20" />
-        <span class="theme-name">{{ theme }}</span>
+        <span class="theme-name">{{ translate(`themes.${theme}` as any) || theme }}</span>
       </span>
     </button>
   </div>
@@ -94,10 +97,56 @@ const emit = defineEmits<{
 
 .theme-card[data-preview="pixel-platformer"] .theme-preview {
   background:
-    linear-gradient(90deg, rgba(0,0,0,0.18) 2px, transparent 2px),
-    linear-gradient(0deg, rgba(0,0,0,0.18) 2px, transparent 2px),
-    linear-gradient(135deg, #1a1a2e, #ff6b35 70%);
-  background-size: 12px 12px, 12px 12px, auto;
+    linear-gradient(90deg, rgba(0,0,0,0.2) 2px, transparent 2px),
+    linear-gradient(0deg, rgba(0,0,0,0.2) 2px, transparent 2px),
+    linear-gradient(135deg, #1a1a2e, #e94560 50%, #ff6b35);
+  background-size: 8px 8px, 8px 8px, auto;
+}
+
+.theme-card[data-preview="terminal-mono"] .theme-preview {
+  background: linear-gradient(135deg, #0a0a0a, #2a2a2a 55%, #cccccc);
+}
+
+.theme-card[data-preview="terminal-blue"] .theme-preview {
+  background: linear-gradient(135deg, #0a0e14, #142438 58%, #4d9fff);
+}
+
+.theme-card[data-preview="terminal-red"] .theme-preview {
+  background: linear-gradient(135deg, #140a0a, #381414 58%, #ff4d4d);
+}
+
+.theme-card[data-preview="terminal-green-matte"] .theme-preview {
+  background: repeating-linear-gradient(0deg, #081408, #081408 6px, #0c1f0c 7px), linear-gradient(135deg, #020f02, #3ab83a);
+}
+
+.theme-card[data-preview="material-slate"] .theme-preview {
+  background: linear-gradient(135deg, #101418, #1e2833 55%, #5b7a9a);
+}
+
+.theme-card[data-preview="material-graphite"] .theme-preview {
+  background: linear-gradient(135deg, #121212, #2a2a2a 55%, #9e9e9e);
+}
+
+.theme-card[data-preview="material-ocean"] .theme-preview {
+  background: linear-gradient(135deg, #0a141e, #0f2a38 58%, #26c6da);
+}
+
+.theme-card[data-preview="material-forest"] .theme-preview {
+  background: linear-gradient(135deg, #0a120a, #1a2e1a 55%, #66bb6a);
+}
+
+.theme-card[data-preview="hacker-prompt"] .theme-preview {
+  background:
+    linear-gradient(0deg, rgba(51,255,51,0.05) 1px, transparent 1px),
+    linear-gradient(135deg, #000000, #0a1a0a 55%, #00ff41);
+  background-size: 100% 4px, auto;
+}
+
+.theme-card[data-preview="code-editor"] .theme-preview {
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.03) 19px),
+    linear-gradient(135deg, #1e1e2e, #2d2d44 55%, #7c3aed);
+  background-size: auto 20px, auto;
 }
 
 .theme-card:hover {

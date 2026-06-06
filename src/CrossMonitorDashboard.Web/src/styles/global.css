@@ -225,7 +225,56 @@ select option {
 [data-theme="pixel-platformer"] .glass-card {
   image-rendering: pixelated;
   border-style: solid;
+  border-width: 3px !important;
   box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+}
+
+[data-theme="pixel-platformer"] .side-menu {
+  border-width: 3px !important;
+}
+
+[data-theme="pixel-platformer"] select,
+[data-theme="pixel-platformer"] input {
+  border-width: 3px !important;
+  border-radius: 2px !important;
+  image-rendering: pixelated;
+}
+
+[data-theme="pixel-platformer"] .status-badge {
+  border-width: 2px !important;
+  border-radius: 2px !important;
+  image-rendering: pixelated;
+}
+
+[data-theme="hacker-prompt"] .node-card::before {
+  content: '> ' !important;
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+[data-theme="hacker-prompt"] .card-footer span:first-child::before {
+  content: '$ ';
+  color: var(--accent);
+}
+
+[data-theme="hacker-prompt"] select option {
+  background: #000000 !important;
+}
+
+[data-theme="code-editor"] .card-header h2::before {
+  content: '// ';
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+[data-theme="code-editor"] select option {
+  background: #1e1e2e !important;
 }
 
 @media (max-width: 520px) {

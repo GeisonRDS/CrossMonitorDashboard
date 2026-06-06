@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getPublicConfig } from '../api/dashboard'
+import { getBackgroundIdByPath } from '../config/backgrounds'
 
 export const VISUAL_SETTINGS_KEY = 'crossmonitor-dashboard-visual-settings'
 
@@ -43,6 +44,13 @@ const currentTheme = ref(defaultSettings.theme)
 const availableThemes = ref<string[]>([])
 const visualSettings = ref<VisualSettings>({ ...defaultSettings })
 
+const defaultThemesList = [
+  'glass-blue', 'neon-green', 'cyber-red', 'terminal-green', 'pixel-platformer',
+  'terminal-mono', 'terminal-blue', 'terminal-red', 'terminal-green-matte',
+  'material-slate', 'material-graphite', 'material-ocean', 'material-forest',
+  'hacker-prompt', 'code-editor'
+]
+
 function sanitizeImagePath(path: string): string {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return ''
@@ -51,6 +59,7 @@ function sanitizeImagePath(path: string): string {
 }
 
 function normalizeSettings(value: Partial<VisualSettings> | null | undefined): VisualSettings {
+  const bgId = getBackgroundIdByPath(value?.background?.imagePath ?? '')
   return {
     ...defaultSettings,
     ...value,
@@ -61,7 +70,7 @@ function normalizeSettings(value: Partial<VisualSettings> | null | undefined): V
     background: {
       ...defaultSettings.background,
       ...value?.background,
-      imagePath: sanitizeImagePath(value?.background?.imagePath ?? '')
+      imagePath: bgId !== 'none' ? sanitizeImagePath(value?.background?.imagePath ?? '') : ''
     },
     metricCharts: {
       ...defaultSettings.metricCharts,
@@ -118,6 +127,10 @@ export function useTheme() {
 
     const savedSettings = readSavedSettings()
     applySettings(normalizeSettings({ ...publicSettings, ...savedSettings }), false)
+
+    if (availableThemes.value.length === 0) {
+      availableThemes.value = defaultThemesList
+    }
   }
 
   return {

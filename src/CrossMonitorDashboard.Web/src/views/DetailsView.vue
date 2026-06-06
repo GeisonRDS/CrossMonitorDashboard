@@ -4,12 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import type { NodeDetails, HistoryDataPoint } from '../types/dashboard'
 import { getNodeDetails, getNodeHistory } from '../api/dashboard'
 import { useTheme, type MetricKey } from '../composables/useTheme'
+import { useI18n } from '../composables/useI18n'
 import MiniChart from '../components/MiniChart.vue'
 
 const route = useRoute()
 const router = useRouter()
 const nodeId = route.params.id as string
 const { visualSettings } = useTheme()
+const { translate } = useI18n()
 
 const details = ref<NodeDetails | null>(null)
 const history = ref<HistoryDataPoint[]>([])
@@ -61,11 +63,11 @@ const networkSeries = computed(() => {
 const chartMetrics = computed(() => {
   if (!details.value) return []
   return [
-    { key: 'cpu' as MetricKey, label: 'CPU', value: `${Math.round(details.value.cpuUsagePercent)}%`, data: series('cpuPercent'), color: 'var(--accent)', unit: '%', max: 100 },
-    { key: 'memory' as MetricKey, label: 'RAM', value: `${Math.round(details.value.memoryUsagePercent)}%`, data: series('memoryPercent'), color: 'var(--warning)', unit: '%', max: 100 },
-    { key: 'disk' as MetricKey, label: 'Disk', value: `${Math.round(details.value.primaryDiskUsagePercent)}%`, data: series('diskPercent'), color: 'var(--success)', unit: '%', max: 100 },
-    { key: 'temperature' as MetricKey, label: 'Temperature', value: details.value.primaryTemperatureCelsius == null ? '--' : `${Math.round(details.value.primaryTemperatureCelsius)}°C`, data: series('temperatureCelsius'), color: 'var(--critical)', unit: '°', max: 120 },
-    { key: 'network' as MetricKey, label: 'Network delta', value: humanBytes((details.value.networkInterfaces[0]?.rxBytes ?? 0) + (details.value.networkInterfaces[0]?.txBytes ?? 0)), data: networkSeries.value, color: 'var(--accent-light)', unit: 'M', max: Math.max(10, ...networkSeries.value) }
+    { key: 'cpu' as MetricKey, label: translate('metrics.cpuFull'), value: `${Math.round(details.value.cpuUsagePercent)}%`, data: series('cpuPercent'), color: 'var(--accent)', unit: '%', max: 100 },
+    { key: 'memory' as MetricKey, label: translate('metrics.memoryFull'), value: `${Math.round(details.value.memoryUsagePercent)}%`, data: series('memoryPercent'), color: 'var(--warning)', unit: '%', max: 100 },
+    { key: 'disk' as MetricKey, label: translate('metrics.diskFull'), value: `${Math.round(details.value.primaryDiskUsagePercent)}%`, data: series('diskPercent'), color: 'var(--success)', unit: '%', max: 100 },
+    { key: 'temperature' as MetricKey, label: translate('metrics.temperatureFull'), value: details.value.primaryTemperatureCelsius == null ? '--' : `${Math.round(details.value.primaryTemperatureCelsius)}°C`, data: series('temperatureCelsius'), color: 'var(--critical)', unit: '°', max: 120 },
+    { key: 'network' as MetricKey, label: translate('metrics.networkDelta'), value: humanBytes((details.value.networkInterfaces[0]?.rxBytes ?? 0) + (details.value.networkInterfaces[0]?.txBytes ?? 0)), data: networkSeries.value, color: 'var(--accent-light)', unit: 'M', max: Math.max(10, ...networkSeries.value) }
   ]
 })
 
@@ -87,15 +89,15 @@ const statusCause = computed(() => {
   const warningTemp = d.temperatures.find(item => item.celsius >= 70)
   const collector = d.collectorStatuses.find(item => item.hasError)
 
-  if (cpu >= 90) return { text: `CPU em ${Math.round(cpu)}%`, level: 'critical' as const, type: 'cpu' as const }
-  if (memory >= 90) return { text: `RAM em ${Math.round(memory)}%`, level: 'critical' as const, type: 'memory' as const }
-  if (diskCritical) return { text: `Disco ${diskCritical.mountPoint} em ${Math.round(diskCritical.usagePercent)}%`, level: 'critical' as const, type: 'disk' as const }
-  if (tempCritical) return { text: `${tempCritical.sensor} a ${Math.round(tempCritical.celsius)}°C`, level: 'critical' as const, type: 'temperature' as const }
-  if (cpu >= 75) return { text: `CPU em ${Math.round(cpu)}%`, level: 'warning' as const, type: 'cpu' as const }
-  if (memory >= 75) return { text: `RAM em ${Math.round(memory)}%`, level: 'warning' as const, type: 'memory' as const }
-  if (d.disks.some(item => item.usagePercent >= 80)) return { text: `Disco com mais de 80% de uso`, level: 'warning' as const, type: 'disk' as const }
-  if (warningTemp) return { text: `${warningTemp.sensor} a ${Math.round(warningTemp.celsius)}°C`, level: 'warning' as const, type: 'temperature' as const }
-  if (collector) return { text: `Erro no coletor ${collector.name}`, level: 'warning' as const, type: 'collector' as const }
+  if (cpu >= 90) return { text: translate('details.cause.cpuCritical', { value: Math.round(cpu) }), level: 'critical' as const, type: 'cpu' as const }
+  if (memory >= 90) return { text: translate('details.cause.memoryCritical', { value: Math.round(memory) }), level: 'critical' as const, type: 'memory' as const }
+  if (diskCritical) return { text: translate('details.cause.diskCritical', { mount: diskCritical.mountPoint, value: Math.round(diskCritical.usagePercent) }), level: 'critical' as const, type: 'disk' as const }
+  if (tempCritical) return { text: translate('details.cause.tempCritical', { sensor: tempCritical.sensor, value: Math.round(tempCritical.celsius) }), level: 'critical' as const, type: 'temperature' as const }
+  if (cpu >= 75) return { text: translate('details.cause.cpuWarning', { value: Math.round(cpu) }), level: 'warning' as const, type: 'cpu' as const }
+  if (memory >= 75) return { text: translate('details.cause.memoryWarning', { value: Math.round(memory) }), level: 'warning' as const, type: 'memory' as const }
+  if (d.disks.some(item => item.usagePercent >= 80)) return { text: translate('details.cause.diskWarning', {}), level: 'warning' as const, type: 'disk' as const }
+  if (warningTemp) return { text: translate('details.cause.tempWarning', { sensor: warningTemp.sensor, value: Math.round(warningTemp.celsius) }), level: 'warning' as const, type: 'temperature' as const }
+  if (collector) return { text: translate('details.cause.collectorError', { name: collector.name }), level: 'warning' as const, type: 'collector' as const }
   if (d.lastError) return { text: d.lastError, level: 'warning' as const, type: 'collector' as const }
   return null
 })
@@ -113,9 +115,9 @@ function humanUptime(uptime: string): string {
 
 <template>
   <div class="details-page fade-in">
-    <button class="back-btn" aria-label="Back to dashboard" @click="router.push('/')">← Back</button>
+    <button class="back-btn" aria-label="Back to dashboard" @click="router.push('/')">{{ translate('details.back') }}</button>
 
-    <div v-if="loading" class="loading glass-card">Loading telemetry...</div>
+    <div v-if="loading" class="loading glass-card">{{ translate('details.loading') }}</div>
     <div v-else-if="error" class="error glass-card">{{ error }}</div>
 
     <div v-else-if="details" class="details-content">
@@ -137,7 +139,7 @@ function humanUptime(uptime: string): string {
       </div>
 
       <div v-if="!hasHistory" class="empty-history glass-card">
-        Nenhum dado histórico disponível ainda. Aguarde alguns ciclos de polling.
+        {{ translate('details.noHistory') }}
       </div>
 
       <section v-else class="charts-grid">
@@ -159,19 +161,19 @@ function humanUptime(uptime: string): string {
       </section>
 
       <section class="detail-section glass-card">
-        <h3>System Info</h3>
+        <h3>{{ translate('details.systemInfo') }}</h3>
         <div class="info-grid">
-          <div class="info-item"><span>Host</span><strong>{{ details.host || '--' }}</strong></div>
-          <div class="info-item"><span>Kernel</span><strong>{{ details.kernel || '--' }}</strong></div>
-          <div class="info-item"><span>Arch</span><strong>{{ details.architecture || '--' }}</strong></div>
-          <div class="info-item"><span>Uptime</span><strong>{{ humanUptime(details.uptime) }}</strong></div>
+          <div class="info-item"><span>{{ translate('details.host') }}</span><strong>{{ details.host || '--' }}</strong></div>
+          <div class="info-item"><span>{{ translate('details.kernel') }}</span><strong>{{ details.kernel || '--' }}</strong></div>
+          <div class="info-item"><span>{{ translate('details.arch') }}</span><strong>{{ details.architecture || '--' }}</strong></div>
+          <div class="info-item"><span>{{ translate('details.uptime') }}</span><strong>{{ humanUptime(details.uptime) }}</strong></div>
         </div>
       </section>
 
       <div class="inventory-grid">
         <section class="detail-section glass-card">
-          <h3>Disks</h3>
-          <div v-if="details.disks.length === 0" class="empty-inline">No disks reported.</div>
+          <h3>{{ translate('details.disks') }}</h3>
+          <div v-if="details.disks.length === 0" class="empty-inline">{{ translate('details.noDisks') }}</div>
           <div v-for="disk in details.disks" :key="disk.mountPoint" class="list-row" :class="{ 'item-offending': disk.usagePercent >= 90 }">
             <span>{{ disk.mountPoint }} / {{ disk.filesystem }}</span>
             <strong>{{ humanBytes(disk.usedBytes) }} / {{ humanBytes(disk.totalBytes) }} ({{ Math.round(disk.usagePercent) }}%)</strong>
@@ -179,17 +181,17 @@ function humanUptime(uptime: string): string {
         </section>
 
         <section class="detail-section glass-card">
-          <h3>Network</h3>
-          <div v-if="details.networkInterfaces.length === 0" class="empty-inline">No network interfaces reported.</div>
+          <h3>{{ translate('details.network') }}</h3>
+          <div v-if="details.networkInterfaces.length === 0" class="empty-inline">{{ translate('details.noNetwork') }}</div>
           <div v-for="ni in details.networkInterfaces" :key="ni.name" class="list-row">
             <span>{{ ni.name }}</span>
-            <strong>RX {{ humanBytes(ni.rxBytes) }} / TX {{ humanBytes(ni.txBytes) }}</strong>
+            <strong>{{ translate('details.rx') }} {{ humanBytes(ni.rxBytes) }} / {{ translate('details.tx') }} {{ humanBytes(ni.txBytes) }}</strong>
           </div>
         </section>
 
         <section class="detail-section glass-card">
-          <h3>Temperatures</h3>
-          <div v-if="details.temperatures.length === 0" class="empty-inline">No temperature sensors reported.</div>
+          <h3>{{ translate('details.temperatures') }}</h3>
+          <div v-if="details.temperatures.length === 0" class="empty-inline">{{ translate('details.noTemperatures') }}</div>
           <div v-for="t in details.temperatures" :key="t.sensor" class="list-row" :class="{ 'item-offending': t.celsius >= 85 }">
             <span>{{ t.sensor }}</span>
             <strong :class="t.celsius >= 85 ? 'status-critical' : t.celsius >= 70 ? 'status-warning' : 'status-ok'">{{ Math.round(t.celsius) }}°C</strong>
@@ -197,11 +199,11 @@ function humanUptime(uptime: string): string {
         </section>
 
         <section class="detail-section glass-card">
-          <h3>Collectors</h3>
-          <div v-if="details.collectorStatuses.length === 0" class="empty-inline">No collectors reported.</div>
+          <h3>{{ translate('details.collectors') }}</h3>
+          <div v-if="details.collectorStatuses.length === 0" class="empty-inline">{{ translate('details.noCollectors') }}</div>
           <div v-for="c in details.collectorStatuses" :key="c.name" class="list-row" :class="{ 'item-offending': c.hasError }">
             <span>{{ c.name }}</span>
-            <strong :class="c.hasError ? 'status-critical' : 'status-ok'">{{ c.enabled ? (c.hasError ? 'Error' : 'OK') : 'Disabled' }}</strong>
+            <strong :class="c.hasError ? 'status-critical' : 'status-ok'">{{ c.enabled ? (c.hasError ? translate('details.collectorError2') : translate('details.collectorOk')) : translate('details.collectorDisabled') }}</strong>
           </div>
         </section>
       </div>

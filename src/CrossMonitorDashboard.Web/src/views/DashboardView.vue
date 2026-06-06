@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useDashboardStore } from '../stores/dashboardStore'
+import { useI18n } from '../composables/useI18n'
 import NodeCard from '../components/NodeCard.vue'
 
 const store = useDashboardStore()
+const { translate } = useI18n()
 </script>
 
 <template>
@@ -17,8 +19,8 @@ const store = useDashboardStore()
     </div>
 
     <div v-else-if="store.error.value && store.nodes.value.length === 0" class="error-state glass-card">
-      <p>Failed to load nodes: {{ store.error.value }}</p>
-      <button class="retry-btn" @click="store.fetchNodes()">Retry</button>
+      <p>{{ translate('dashboard.failedToLoad', { error: store.error.value }) }}</p>
+      <button class="retry-btn" @click="store.fetchNodes()">{{ translate('dashboard.retry') }}</button>
     </div>
 
     <div v-else class="grid-responsive node-grid">

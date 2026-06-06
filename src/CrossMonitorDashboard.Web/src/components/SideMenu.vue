@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { useI18n } from '../composables/useI18n'
 
 const router = useRouter()
 const route = useRoute()
+const { translate } = useI18n()
 
 const menuItems = [
-  { icon: 'mdi:view-dashboard-outline', label: 'Dashboard', route: '/' },
-  { icon: 'mdi:palette-outline', label: 'Themes', route: '/settings' },
-  { icon: 'mdi:information-outline', label: 'About', route: '/about' }
+  { icon: 'mdi:view-dashboard-outline', labelKey: 'nav.dashboard', route: '/' },
+  { icon: 'mdi:palette-outline', labelKey: 'nav.settings', route: '/settings' }
 ]
 
 function isActive(item: typeof menuItems[0]): boolean {
@@ -26,16 +27,16 @@ function navigate(item: typeof menuItems[0]) {
     <div class="menu-rail">
       <button
         v-for="item in menuItems"
-        :key="item.label"
+        :key="item.labelKey"
         class="menu-item"
         :class="{ active: isActive(item) }"
-        :title="item.label"
-        :aria-label="item.label"
+        :title="translate(item.labelKey)"
+        :aria-label="translate(item.labelKey)"
         @click="navigate(item)"
       >
         <span class="active-beam"></span>
         <Icon class="menu-icon" :icon="item.icon" width="25" height="25" aria-hidden="true" />
-        <span class="tooltip">{{ item.label }}</span>
+        <span class="tooltip">{{ translate(item.labelKey) }}</span>
       </button>
     </div>
     <div class="menu-footer" title="Dashboard online">

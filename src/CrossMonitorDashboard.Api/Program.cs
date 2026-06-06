@@ -64,7 +64,7 @@ apiRoot.MapGet("/summary", (DashboardService ds) =>
 
 apiRoot.MapGet("/themes", () =>
 {
-    return Results.Ok(new[] { "glass-blue", "neon-green", "cyber-red", "terminal-green", "pixel-platformer" });
+    return Results.Ok(new[] { "glass-blue", "neon-green", "cyber-red", "terminal-green", "pixel-platformer", "terminal-mono", "terminal-blue", "terminal-red", "terminal-green-matte", "material-slate", "material-graphite", "material-ocean", "material-forest", "hacker-prompt", "code-editor" });
 });
 
 apiRoot.MapGet("/config/public", (ConfigService cs) =>

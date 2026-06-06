@@ -3,11 +3,13 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { NodeSummary, NodeDetails, HistoryDataPoint } from '../types/dashboard'
 import { useTheme, type MetricKey, type MetricChartType } from '../composables/useTheme'
+import { useI18n } from '../composables/useI18n'
 import MiniChart from './MiniChart.vue'
 
 const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null }>()
 const router = useRouter()
 const { currentTheme, visualSettings } = useTheme()
+const { translate } = useI18n()
 
 const fallbackHistories = {
   cpu: ref<number[]>([]),
@@ -83,8 +85,8 @@ const statusClass = computed(() => {
 })
 
 const statusLabel = computed(() => {
-  if (!props.node.online) return currentTheme.value === 'pixel-platformer' ? 'GAME OVER' : 'OFFLINE'
-  return 'ONLINE'
+  if (!props.node.online) return currentTheme.value === 'pixel-platformer' ? translate('card.gameOver') : translate('card.offline')
+  return translate('card.online')
 })
 
 const hasDetailsAlert = computed(() => {
@@ -102,8 +104,8 @@ const hasDetailsAlert = computed(() => {
 })
 
 const metricLabels = computed(() => currentTheme.value === 'pixel-platformer'
-  ? { cpu: 'HP', temperature: 'HEAT', memory: 'MP', disk: 'BAG', download: 'DOWN', upload: 'UP' }
-  : { cpu: 'CPU', temperature: 'TEMP', memory: 'RAM', disk: 'DISCO', download: 'DOWN', upload: 'UP' })
+  ? { cpu: translate('pixel.cpu'), temperature: translate('pixel.temperature'), memory: translate('pixel.memory'), disk: translate('pixel.disk'), download: translate('pixel.download'), upload: translate('pixel.upload') }
+  : { cpu: translate('metrics.cpu'), temperature: translate('metrics.temperature'), memory: translate('metrics.memory'), disk: translate('metrics.disk'), download: translate('metrics.download'), upload: translate('metrics.upload') })
 
 function visibleSeverity(metric: 'cpu' | 'memory' | 'disk' | 'temperature') {
   const value = ({
@@ -124,20 +126,21 @@ function findIssues() {
   const temp = props.node.primaryTemperatureCelsius ?? 0
   const collector = props.details?.collectorStatuses.find(item => item.hasError)
 
-  if (cpu >= 90) return { metric: 'cpu', text: 'CPU acima de 90%', level: 'critical' as const }
-  if (memory >= 90) return { metric: 'memory', text: 'RAM acima de 90%', level: 'critical' as const }
-  if (disk >= 90) return { metric: 'disk', text: 'Disco principal acima de 90%', level: 'critical' as const }
-  if (temp >= 85) return { metric: 'temperature', text: 'Temperatura acima de 85°C', level: 'critical' as const }
-  if (cpu >= 75) return { metric: 'cpu', text: 'CPU acima de 75%', level: 'warning' as const }
-  if (memory >= 75) return { metric: 'memory', text: 'RAM acima de 75%', level: 'warning' as const }
-  if (disk >= 80) return { metric: 'disk', text: 'Disco principal acima de 80%', level: 'warning' as const }
-  if (temp >= 70) return { metric: 'temperature', text: 'Temperatura acima de 70°C', level: 'warning' as const }
-  if (collector) return { metric: null, text: `Erro no coletor ${collector.name}`, level: 'warning' as const }
-  if (props.node.lastError) return { metric: null, text: props.node.lastError, level: 'warning' as const }
-  return { metric: null, text: 'Sem alertas ativos', level: 'ok' as const }
+  if (cpu >= 90) return { metric: 'cpu', textKey: 'details.cause.cpuCritical', textParams: { value: Math.round(cpu) }, level: 'critical' as const }
+  if (memory >= 90) return { metric: 'memory', textKey: 'details.cause.memoryCritical', textParams: { value: Math.round(memory) }, level: 'critical' as const }
+  if (disk >= 90) return { metric: 'disk', textKey: 'details.cause.diskCritical', textParams: { mount: 'primary', value: Math.round(disk) }, level: 'critical' as const }
+  if (temp >= 85) return { metric: 'temperature', textKey: 'details.cause.tempCritical', textParams: { sensor: 'CPU', value: Math.round(temp) }, level: 'critical' as const }
+  if (cpu >= 75) return { metric: 'cpu', textKey: 'details.cause.cpuWarning', textParams: { value: Math.round(cpu) }, level: 'warning' as const }
+  if (memory >= 75) return { metric: 'memory', textKey: 'details.cause.memoryWarning', textParams: { value: Math.round(memory) }, level: 'warning' as const }
+  if (disk >= 80) return { metric: 'disk', textKey: 'details.cause.diskWarning', textParams: {}, level: 'warning' as const }
+  if (temp >= 70) return { metric: 'temperature', textKey: 'details.cause.tempWarning', textParams: { sensor: 'CPU', value: Math.round(temp) }, level: 'warning' as const }
+  if (collector) return { metric: null, textKey: 'card.collectorError', textParams: {}, level: 'warning' as const }
+  if (props.node.lastError) return { metric: null, textKey: null, textParams: {}, customText: props.node.lastError, level: 'warning' as const }
+  return { metric: null, textKey: 'card.noAlerts', textParams: {}, level: 'ok' as const }
 }
 
 const causerMetricId = computed(() => findIssues().metric)
+const findIssuesResult = computed(() => findIssues())
 
 const cardSeverity = computed(() => {
   const severities = metrics.value.map(m => m.severity)
@@ -171,10 +174,10 @@ const metrics = computed(() => {
 const lastUpdate = computed(() => {
   if (!props.node.lastUpdateUnix) return '--'
   const diff = Math.max(0, Date.now() / 1000 - props.node.lastUpdateUnix)
-  if (diff < 60) return `${Math.round(diff)}s`
-  if (diff < 3600) return `${Math.round(diff / 60)}m`
-  if (diff < 86400) return `${Math.round(diff / 3600)}h`
-  return `${Math.round(diff / 86400)}d`
+  if (diff < 60) return `${Math.round(diff)}${translate('settings.second')}`
+  if (diff < 3600) return `${Math.round(diff / 60)}${translate('settings.minute')}`
+  if (diff < 86400) return `${Math.round(diff / 3600)}${translate('settings.hour')}`
+  return `${Math.round(diff / 86400)}${translate('settings.day')}`
 })
 
 function goToDetails() {
@@ -207,13 +210,13 @@ function handleKeydown(event: KeyboardEvent) {
         <h2 class="node-name">{{ node.name }}</h2>
       </div>
       <div class="status-stack">
+        <svg v-if="hasDetailsAlert && props.node.online" class="card-alert-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path d="M8 1L1 15h14L8 1z" fill="currentColor"/>
+          <path d="M8 5v4" stroke="var(--bg-primary)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+          <circle cx="8" cy="11.5" r="1" fill="var(--bg-primary)"/>
+        </svg>
         <span class="status-badge" :class="statusClass">
           <span class="status-light"></span>
-          <svg v-if="hasDetailsAlert && props.node.online" class="alert-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path d="M8 1L1 15h14L8 1z" fill="currentColor"/>
-            <path d="M8 5v4" stroke="var(--bg-primary)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-            <circle cx="8" cy="11.5" r="1" fill="var(--bg-primary)"/>
-          </svg>
           {{ statusLabel }}
         </span>
       </div>
@@ -225,7 +228,7 @@ function handleKeydown(event: KeyboardEvent) {
           <span class="metric-label text-mono">{{ metric.label }}</span>
           <span class="metric-value-wrap">
             <strong>{{ metric.value }}</strong>
-            <span v-if="metric.id === causerMetricId" class="metric-alert-chip" :class="statusClass">{{ statusLabel }}</span>
+            <span v-if="metric.id === causerMetricId" class="metric-alert-chip" :class="statusClass">{{ findIssuesResult.level === 'critical' ? 'CRITICAL' : 'WARNING' }}</span>
           </span>
         </div>
         <MiniChart
@@ -243,7 +246,7 @@ function handleKeydown(event: KeyboardEvent) {
 
     <div class="card-footer text-mono">
       <span>v{{ node.agentVersion || '--' }}</span>
-      <span>updated {{ lastUpdate }}</span>
+      <span>{{ translate('card.updated') }} {{ lastUpdate }}</span>
     </div>
   </article>
 </template>
@@ -341,9 +344,16 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .status-stack {
-  display: grid;
-  justify-items: end;
-  gap: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.card-alert-icon {
+  flex-shrink: 0;
+  color: var(--warning);
+  filter: drop-shadow(0 0 4px var(--glow-warning));
 }
 
 .status-badge {
@@ -367,11 +377,6 @@ function handleKeydown(event: KeyboardEvent) {
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 12px currentColor;
-}
-
-.alert-icon {
-  flex-shrink: 0;
-  display: block;
 }
 
 .metrics-grid {

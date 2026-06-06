@@ -172,19 +172,29 @@ docker compose down
 
 ## Themes
 
-Available themes:
+Available themes (15 total):
 
-| Theme            | Description                                |
-|------------------|--------------------------------------------|
-| glass-blue       | Default. Dark with blue glassmorphism      |
-| neon-green       | Dark green terminal-style monitoring       |
-| cyber-red        | Aggressive red/pink cyberpunk look         |
-| terminal-green   | Classic green-on-black terminal aesthetic  |
-| pixel-platformer | Retro 2D platformer game style             |
+| Theme               | Description                                      |
+|---------------------|--------------------------------------------------|
+| glass-blue          | Default. Dark with blue glassmorphism            |
+| neon-green          | Dark green terminal-style monitoring             |
+| cyber-red           | Aggressive red/pink cyberpunk look               |
+| terminal-green      | Classic green-on-black terminal aesthetic        |
+| pixel-platformer    | Retro 2D platformer game style (blocks/pixels)   |
+| terminal-mono       | Matte black/gray terminal, low glow              |
+| terminal-blue       | Matte dark blue terminal, technical look         |
+| terminal-red        | Matte dark red terminal, technical look          |
+| terminal-green-matte| Matte green terminal, subtle, no neon            |
+| material-slate      | Material Design dark slate, neutral              |
+| material-graphite   | Material Design dark graphite, solid cards       |
+| material-ocean      | Material Design dark ocean, discrete teal        |
+| material-forest     | Material Design dark forest, neutral green       |
+| hacker-prompt       | Hacker terminal with prompts, black/green        |
+| code-editor         | Code editor style (IDE dark, syntax colors)      |
 
-Switch themes from the Settings page.
+Switch themes from the Settings page. Themes use CSS custom properties and include full support for cards, sidebar, selects, charts, and the details screen.
 
-Theme and visual preferences are stored locally in the browser under `crossmonitor-dashboard-visual-settings`. This storage contains only safe UI preferences such as theme, card size, refresh interval, animation settings, and background options. Tokens and node configuration are never stored in the frontend.
+Theme and visual preferences are stored locally in the browser under `crossmonitor-dashboard-visual-settings`. This storage contains only safe UI preferences such as theme, card size, refresh interval, animation settings, background options, and chart type preferences. Tokens and node configuration are never stored in the frontend.
 
 Metric chart preferences are also stored in the same local key. Supported chart types are:
 
@@ -205,6 +215,28 @@ The JSON editor was removed from the UI. Local node configuration continues to l
 Visual direction is inspired by local references in `docs/design-references`: dark NOC dashboards, glass cards, strong icon contrast, neon glows, integrated charts, and a readable pixel-platformer variant. These images are references only and are not copied or loaded as external assets.
 
 The main dashboard intentionally has no top header, hero banner, or summary section above the cards. Details remain accessible by clicking the full node card; there is no separate Nodes menu item.
+
+## Localization
+
+The dashboard supports two languages:
+- English (default)
+- Portuguese (pt-BR)
+
+Switch languages from the Settings page. Language preference is stored in `crossmonitor-dashboard-language` in localStorage. All fixed UI text is translated; machine names, API data, sensor names, and technical values are not translated.
+
+## Background Images
+
+Background images must be local files placed in `public/backgrounds/`. External URLs are not accepted.
+
+| Property | Detail |
+|----------|--------|
+| Folder | `src/CrossMonitorDashboard.Web/public/backgrounds/` |
+| Formats | jpg, jpeg, png, webp |
+| Max size | 2 MB per file |
+| Config | Add entries in `src/CrossMonitorDashboard.Web/src/config/backgrounds.ts` |
+| Selection | Settings page → Background → Image → select from list |
+
+After adding a file to the folder, register it in `backgrounds.ts` with an id, en/pt names, and path. The chosen image path is saved to `crossmonitor-dashboard-visual-settings` (localStorage).
 
 ## Dashboard API Endpoints
 
@@ -238,7 +270,6 @@ Metrics come from `/api/v1/system`. `/api/v1/status` does not contain CPU, memor
 | `/`         | Dashboard with node cards grid |
 | `/nodes/:id`| Node detail page with charts   |
 | `/settings` | Visual and display settings    |
-| `/about`    | Architecture and tech info     |
 
 ## Visual Validation
 

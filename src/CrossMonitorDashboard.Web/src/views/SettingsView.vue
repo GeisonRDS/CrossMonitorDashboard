@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useTheme, type VisualSettings, type MetricKey, type MetricChartType } from '../composables/useTheme'
+import { useI18n } from '../composables/useI18n'
+import { availableBackgrounds } from '../config/backgrounds'
 import ThemeSelector from '../components/ThemeSelector.vue'
 import { getThemes } from '../api/dashboard'
 
 const { currentTheme, availableThemes, visualSettings, applyTheme, applySettings } = useTheme()
+const { translate, currentLocale, setLocale, availableLocales } = useI18n()
 const saved = ref(false)
 const chartTypes: Array<{ value: MetricChartType; label: string; description: string }> = [
-  { value: 'line-glow', label: 'Grafico 1', description: 'Linha com brilho' },
-  { value: 'radial-gauge', label: 'Grafico 2', description: 'Donut radial' },
-  { value: 'bar-pulse', label: 'Grafico 3', description: 'Barras verticais' }
+  { value: 'line-glow', label: 'line-glow', description: 'Linha com brilho' },
+  { value: 'radial-gauge', label: 'radial-gauge', description: 'Donut radial' },
+  { value: 'bar-pulse', label: 'bar-pulse', description: 'Barras verticais' }
 ]
 const metricOptions: Array<{ key: MetricKey; label: string }> = [
   { key: 'cpu', label: 'CPU' },
-  { key: 'memory', label: 'Memoria' },
+  { key: 'memory', label: 'RAM' },
   { key: 'disk', label: 'Disco' },
   { key: 'temperature', label: 'Temperatura' },
   { key: 'network', label: 'Rede' }
@@ -38,7 +41,12 @@ onMounted(async () => {
   try {
     availableThemes.value = await getThemes()
   } catch {
-    availableThemes.value = ['glass-blue', 'neon-green', 'cyber-red', 'terminal-green', 'pixel-platformer']
+    availableThemes.value = [
+      'glass-blue', 'neon-green', 'cyber-red', 'terminal-green', 'pixel-platformer',
+      'terminal-mono', 'terminal-blue', 'terminal-red', 'terminal-green-matte',
+      'material-slate', 'material-graphite', 'material-ocean', 'material-forest',
+      'hacker-prompt', 'code-editor'
+    ]
   }
   Object.assign(localSettings, JSON.parse(JSON.stringify(visualSettings.value)))
 })
@@ -64,27 +72,41 @@ function saveImmediately() {
 <template>
   <div class="settings-page fade-in">
     <div class="settings-header">
-      <p class="eyebrow text-mono">Visual control</p>
-      <h1>Theme & display</h1>
-      <p>Changes are saved locally in this browser only. Tokens and agent configuration are never stored here.</p>
+      <p class="eyebrow text-mono">{{ translate('settings.visualControl') }}</p>
+      <h1>{{ translate('settings.themeAndDisplay') }}</h1>
+      <p>{{ translate('settings.saveInfo') }}</p>
     </div>
 
     <section class="settings-section glass-card">
       <div class="section-title">
-        <h3>Theme</h3>
-        <span class="current-theme text-mono">{{ currentTheme }}</span>
+        <h3>{{ translate('settings.language') }}</h3>
+      </div>
+      <div class="setting-row">
+        <label>{{ translate('settings.language') }}</label>
+        <select :value="currentLocale" class="setting-input" @change="(e) => setLocale((e.target as HTMLSelectElement).value as 'en' | 'pt')">
+          <option v-for="lang in availableLocales()" :key="lang.value" :value="lang.value">
+            {{ lang.label }}
+          </option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-section glass-card">
+      <div class="section-title">
+        <h3>{{ translate('settings.theme') }}</h3>
+        <span class="current-theme text-mono">{{ translate(`themes.${currentTheme}` as any) || currentTheme }}</span>
       </div>
       <ThemeSelector :themes="availableThemes" :current="currentTheme" @select="selectTheme" />
     </section>
 
     <section class="settings-section glass-card">
-      <div class="section-title"><h3>Graficos por metrica</h3></div>
+      <div class="section-title"><h3>{{ translate('settings.chartsByMetric') }}</h3></div>
       <div class="chart-type-grid">
         <label v-for="metric in metricOptions" :key="metric.key" class="chart-type-row">
-          <span>{{ metric.label }}</span>
+          <span>{{ translate(`metrics.${metric.key}Full` as any) || metric.label }}</span>
           <select v-model="localSettings.metricCharts[metric.key]" class="setting-input" @change="saveImmediately">
             <option v-for="type in chartTypes" :key="type.value" :value="type.value">
-              {{ type.label }} - {{ type.description }}
+              {{ type.label }}
             </option>
           </select>
         </label>
@@ -92,83 +114,87 @@ function saveImmediately() {
     </section>
 
     <section class="settings-section glass-card">
-      <div class="section-title"><h3>Display</h3></div>
+      <div class="section-title"><h3>{{ translate('settings.display') }}</h3></div>
       <div class="setting-row">
-        <label>Refresh Interval</label>
+        <label>{{ translate('settings.refreshInterval') }}</label>
         <select v-model.number="localSettings.refreshSeconds" class="setting-input">
-          <option :value="2">2 seconds</option>
-          <option :value="5">5 seconds</option>
-          <option :value="10">10 seconds</option>
-          <option :value="30">30 seconds</option>
-          <option :value="60">60 seconds</option>
+          <option :value="2">{{ translate('settings.seconds', { value: 2 }) }}</option>
+          <option :value="5">{{ translate('settings.seconds', { value: 5 }) }}</option>
+          <option :value="10">{{ translate('settings.seconds', { value: 10 }) }}</option>
+          <option :value="30">{{ translate('settings.seconds', { value: 30 }) }}</option>
+          <option :value="60">{{ translate('settings.seconds', { value: 60 }) }}</option>
         </select>
       </div>
       <div class="setting-row stacked">
-        <label>Card Size</label>
+        <label>{{ translate('settings.cardSize') }}</label>
         <div class="radio-group">
-          <label><input type="radio" v-model="localSettings.cardSize" value="compact" /> Compact</label>
-          <label><input type="radio" v-model="localSettings.cardSize" value="normal" /> Normal</label>
-          <label><input type="radio" v-model="localSettings.cardSize" value="wide" /> Wide</label>
-          <label><input type="radio" v-model="localSettings.cardSize" value="detailed" /> Detailed</label>
+          <label><input type="radio" v-model="localSettings.cardSize" value="compact" /> {{ translate('settings.compact') }}</label>
+          <label><input type="radio" v-model="localSettings.cardSize" value="normal" /> {{ translate('settings.normal') }}</label>
+          <label><input type="radio" v-model="localSettings.cardSize" value="wide" /> {{ translate('settings.wide') }}</label>
+          <label><input type="radio" v-model="localSettings.cardSize" value="detailed" /> {{ translate('settings.detailed') }}</label>
         </div>
       </div>
     </section>
 
     <section class="settings-section glass-card">
-      <div class="section-title"><h3>Motion</h3></div>
+      <div class="section-title"><h3>{{ translate('settings.motion') }}</h3></div>
       <div class="setting-row">
-        <label>Enable Animations</label>
+        <label>{{ translate('settings.enableAnimations') }}</label>
         <label class="toggle">
           <input type="checkbox" v-model="localSettings.animations.enabled" />
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div v-if="localSettings.animations.enabled" class="setting-row">
-        <label>Intensity</label>
+        <label>{{ translate('settings.intensity') }}</label>
         <select v-model="localSettings.animations.intensity" class="setting-input">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          <option value="low">{{ translate('settings.low') }}</option>
+          <option value="medium">{{ translate('settings.medium') }}</option>
+          <option value="high">{{ translate('settings.high') }}</option>
         </select>
       </div>
     </section>
 
     <section class="settings-section glass-card">
-      <div class="section-title"><h3>Background</h3></div>
+      <div class="section-title"><h3>{{ translate('settings.background') }}</h3></div>
       <div class="setting-row">
-        <label>Type</label>
+        <label>{{ translate('settings.type') }}</label>
         <select v-model="localSettings.background.type" class="setting-input">
-          <option value="gradient">Gradient</option>
-          <option value="solid">Solid</option>
-          <option value="image">Image</option>
+          <option value="gradient">{{ translate('settings.gradient') }}</option>
+          <option value="solid">{{ translate('settings.solid') }}</option>
+          <option value="image">{{ translate('settings.image') }}</option>
         </select>
       </div>
       <div v-if="localSettings.background.type === 'image'" class="setting-row">
-        <label>Background Image</label>
+        <label>{{ translate('settings.imagePath') }}</label>
         <select v-model="localSettings.background.imagePath" class="setting-input">
-          <option value="">Nenhum (usar gradiente)</option>
-          <option value="/backgrounds/default-dark.jpg">Default Dark</option>
-          <option value="/backgrounds/default-blue.jpg">Default Blue</option>
+          <option
+            v-for="bg in availableBackgrounds"
+            :key="bg.id"
+            :value="bg.path"
+          >
+            {{ currentLocale === 'pt' ? bg.namePt : bg.name }}
+          </option>
         </select>
-        <p class="setting-hint">Adicione imagens em <code>public/backgrounds/</code> (jpg, png, webp, max 2MB)</p>
+        <p class="setting-hint">{{ translate('settings.backgroundHint', { folder: 'public/backgrounds/' }) }}</p>
       </div>
       <div class="setting-row">
-        <label>Opacity ({{ Math.round(localSettings.background.opacity * 100) }}%)</label>
+        <label>{{ translate('settings.opacity', { value: Math.round(localSettings.background.opacity * 100) }) }}</label>
         <input type="range" v-model.number="localSettings.background.opacity" :min="0" :max="1" :step="0.05" class="setting-slider" />
       </div>
       <div class="setting-row">
-        <label>Blur ({{ localSettings.background.blur }}px)</label>
+        <label>{{ translate('settings.blur', { value: localSettings.background.blur }) }}</label>
         <input type="range" v-model.number="localSettings.background.blur" :min="0" :max="50" class="setting-slider" />
       </div>
       <div class="setting-row">
-        <label>Overlay ({{ Math.round(localSettings.background.overlay * 100) }}%)</label>
+        <label>{{ translate('settings.overlay', { value: Math.round(localSettings.background.overlay * 100) }) }}</label>
         <input type="range" v-model.number="localSettings.background.overlay" :min="0" :max="1" :step="0.05" class="setting-slider" />
       </div>
     </section>
 
     <div class="settings-actions">
-      <button class="save-btn" @click="saveSettings">Save visual settings</button>
-      <span v-if="saved" class="saved-message text-mono">Saved locally</span>
+      <button class="save-btn" @click="saveSettings">{{ translate('settings.saveSettings') }}</button>
+      <span v-if="saved" class="saved-message text-mono">{{ translate('settings.savedLocally') }}</span>
     </div>
   </div>
 </template>
@@ -276,13 +302,6 @@ function saveImmediately() {
 }
 
 .setting-input {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.52rem 0.75rem;
-  border-radius: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
   min-width: 150px;
 }
 
