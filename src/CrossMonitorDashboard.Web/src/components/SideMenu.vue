@@ -47,10 +47,11 @@ function navigate(item: typeof menuItems[0]) {
 <style scoped>
 .side-menu {
   position: fixed;
-  left: 14px;
-  top: 14px;
-  bottom: 14px;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 58px;
+  height: 100vh;
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -60,8 +61,9 @@ function navigate(item: typeof menuItems[0]) {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
     var(--bg-sidebar);
-  border: 1px solid var(--border-color);
-  border-radius: 22px;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  border-radius: 0;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -123,10 +125,10 @@ function navigate(item: typeof menuItems[0]) {
 
 .active-beam {
   position: absolute;
-  left: -9px;
+  left: 0;
   width: 3px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: 0 4px 4px 0;
   background: var(--accent-light);
   box-shadow: 0 0 14px var(--glow-accent);
   opacity: 0;
@@ -184,11 +186,11 @@ function navigate(item: typeof menuItems[0]) {
 
 @media (max-width: 760px) {
   .side-menu {
-    left: 8px;
-    top: 8px;
-    bottom: 8px;
+    left: 0;
+    top: 0;
+    bottom: 0;
     width: 50px;
-    border-radius: 18px;
+    border-radius: 0;
   }
 
   .menu-item {

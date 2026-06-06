@@ -91,23 +91,17 @@ const statusLabel = computed(() => {
   }
 })
 
-function isCpuTemperatureSensor(name: string) {
-  const lower = name.toLowerCase()
-  return lower.includes('cpu') || lower.includes('core') || lower.includes('tctl') || lower.includes('tdie') || lower.includes('package') || lower.includes('tccd')
-}
-
 const metricLabels = computed(() => currentTheme.value === 'pixel-platformer'
   ? { cpu: 'HP', temperature: 'HEAT', memory: 'MP', disk: 'BAG', download: 'DOWN', upload: 'UP' }
   : { cpu: 'CPU', temperature: 'TEMP', memory: 'RAM', disk: 'DISCO', download: 'DOWN', upload: 'UP' })
 
 function visibleSeverity(metric: 'cpu' | 'memory' | 'disk' | 'temperature') {
-  const values = {
+  const value = ({
     cpu: props.node.cpuUsagePercent,
     memory: props.node.memoryUsagePercent,
-    disk: Math.max(props.node.primaryDiskUsagePercent, ...(props.details?.disks.map(disk => disk.usagePercent) ?? [])),
-    temperature: Math.max(props.node.primaryTemperatureCelsius ?? 0, ...(props.details?.temperatures.map(temp => temp.celsius) ?? []))
-  }
-  const value = values[metric]
+    disk: props.node.primaryDiskUsagePercent,
+    temperature: props.node.primaryTemperatureCelsius ?? 0
+  })[metric]
   if (metric === 'disk') return value >= 90 ? 'critical' : value >= 80 ? 'warning' : 'normal'
   if (metric === 'temperature') return value >= 85 ? 'critical' : value >= 70 ? 'warning' : 'normal'
   return value >= 90 ? 'critical' : value >= 75 ? 'warning' : 'normal'
@@ -116,20 +110,18 @@ function visibleSeverity(metric: 'cpu' | 'memory' | 'disk' | 'temperature') {
 function findIssues() {
   const cpu = props.node.cpuUsagePercent
   const memory = props.node.memoryUsagePercent
-  const diskCritical = props.details?.disks.find(item => item.usagePercent >= 90) ?? (props.node.primaryDiskUsagePercent >= 90 ? { mountPoint: 'principal', usagePercent: props.node.primaryDiskUsagePercent } : null)
-  const warningDisk = props.details?.disks.find(item => item.usagePercent >= 80) ?? (props.node.primaryDiskUsagePercent >= 80 ? { mountPoint: 'principal', usagePercent: props.node.primaryDiskUsagePercent } : null)
-  const tempCritical = props.details?.temperatures.find(item => item.celsius >= 85) ?? ((props.node.primaryTemperatureCelsius ?? 0) >= 85 ? { sensor: 'principal', celsius: props.node.primaryTemperatureCelsius ?? 0 } : null)
-  const warningTemp = props.details?.temperatures.find(item => item.celsius >= 70) ?? ((props.node.primaryTemperatureCelsius ?? 0) >= 70 ? { sensor: 'principal', celsius: props.node.primaryTemperatureCelsius ?? 0 } : null)
+  const disk = props.node.primaryDiskUsagePercent
+  const temp = props.node.primaryTemperatureCelsius ?? 0
   const collector = props.details?.collectorStatuses.find(item => item.hasError)
 
   if (cpu >= 90) return { metric: 'cpu', text: 'CPU acima de 90%', level: 'critical' as const }
   if (memory >= 90) return { metric: 'memory', text: 'RAM acima de 90%', level: 'critical' as const }
-  if (diskCritical) return { metric: 'disk', text: `Disco ${diskCritical.mountPoint} acima de 90%`, level: 'critical' as const }
-  if (tempCritical) return { metric: 'temperature', text: `Temperatura ${tempCritical.sensor} acima de 85°C`, level: 'critical' as const }
+  if (disk >= 90) return { metric: 'disk', text: 'Disco principal acima de 90%', level: 'critical' as const }
+  if (temp >= 85) return { metric: 'temperature', text: 'Temperatura acima de 85°C', level: 'critical' as const }
   if (cpu >= 75) return { metric: 'cpu', text: 'CPU acima de 75%', level: 'warning' as const }
   if (memory >= 75) return { metric: 'memory', text: 'RAM acima de 75%', level: 'warning' as const }
-  if (warningDisk) return { metric: 'disk', text: `Disco ${warningDisk.mountPoint} acima de 80%`, level: 'warning' as const }
-  if (warningTemp) return { metric: 'temperature', text: `Temperatura ${warningTemp.sensor} acima de 70°C`, level: 'warning' as const }
+  if (disk >= 80) return { metric: 'disk', text: 'Disco principal acima de 80%', level: 'warning' as const }
+  if (temp >= 70) return { metric: 'temperature', text: 'Temperatura acima de 70°C', level: 'warning' as const }
   if (collector) return { metric: null, text: `Erro no coletor ${collector.name}`, level: 'warning' as const }
   if (props.node.lastError) return { metric: null, text: props.node.lastError, level: 'warning' as const }
   return { metric: null, text: 'Sem alertas ativos', level: 'ok' as const }
@@ -137,17 +129,18 @@ function findIssues() {
 
 const causerMetricId = computed(() => findIssues().metric)
 
-function isCriticalDueToCpuTemp() {
-  if (props.node.status?.toLowerCase() !== 'critical') return false
-  const cpuTempCritical = (props.details?.temperatures ?? []).some(t => isCpuTemperatureSensor(t.sensor) && t.celsius >= 85)
-  return cpuTempCritical
-}
+const cardSeverity = computed(() => {
+  const severities = metrics.value.map(m => m.severity)
+  if (severities.includes('critical')) return 'critical'
+  if (severities.includes('warning')) return 'warning'
+  return 'success'
+})
 
 const cardStyle = computed(() => {
   if (!props.node.online) return { '--node-tone': 'var(--offline)', '--node-glow': 'var(--glow-accent)' }
-  if (isCriticalDueToCpuTemp()) return { '--node-tone': 'var(--critical)', '--node-glow': 'var(--glow-critical)' }
-  if (props.node.status?.toLowerCase() === 'critical') return { '--node-tone': 'var(--warning)', '--node-glow': 'var(--glow-warning)' }
-  if (props.node.status?.toLowerCase() === 'warning') return { '--node-tone': 'var(--warning)', '--node-glow': 'var(--glow-warning)' }
+  const s = cardSeverity.value
+  if (s === 'critical') return { '--node-tone': 'var(--critical)', '--node-glow': 'var(--glow-critical)' }
+  if (s === 'warning') return { '--node-tone': 'var(--warning)', '--node-glow': 'var(--glow-warning)' }
   return { '--node-tone': 'var(--success)', '--node-glow': 'var(--glow-success)' }
 })
 

@@ -85,7 +85,7 @@ watch(() => visualSettings.value.refreshSeconds, (seconds) => {
 
 .main-content {
   flex: 1;
-  margin-left: 76px;
+  margin-left: 58px;
   padding: 1.75rem;
   overflow-y: auto;
   min-height: 100vh;
@@ -93,7 +93,7 @@ watch(() => visualSettings.value.refreshSeconds, (seconds) => {
 
 @media (max-width: 760px) {
   .main-content {
-    margin-left: 62px;
+    margin-left: 50px;
     padding: 1rem;
   }
 }
