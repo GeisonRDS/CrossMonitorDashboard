@@ -91,9 +91,14 @@ const statusLabel = computed(() => {
   }
 })
 
+function isCpuTemperatureSensor(name: string) {
+  const lower = name.toLowerCase()
+  return lower.includes('cpu') || lower.includes('core') || lower.includes('tctl') || lower.includes('tdie') || lower.includes('package') || lower.includes('tccd')
+}
+
 const metricLabels = computed(() => currentTheme.value === 'pixel-platformer'
   ? { cpu: 'HP', temperature: 'HEAT', memory: 'MP', disk: 'BAG', download: 'DOWN', upload: 'UP' }
-  : { cpu: 'CPU', temperature: 'TEMP', memory: 'RAM', disk: 'DISCO', download: 'DOWNLOAD', upload: 'UPLOAD' })
+  : { cpu: 'CPU', temperature: 'TEMP', memory: 'RAM', disk: 'DISCO', download: 'DOWN', upload: 'UP' })
 
 function visibleSeverity(metric: 'cpu' | 'memory' | 'disk' | 'temperature') {
   const values = {
@@ -130,14 +135,20 @@ function findIssues() {
   return { metric: null, text: 'Sem alertas ativos', level: 'ok' as const }
 }
 
-const statusReason = computed(() => findIssues().text)
 const causerMetricId = computed(() => findIssues().metric)
 
+function isCriticalDueToCpuTemp() {
+  if (props.node.status?.toLowerCase() !== 'critical') return false
+  const cpuTempCritical = (props.details?.temperatures ?? []).some(t => isCpuTemperatureSensor(t.sensor) && t.celsius >= 85)
+  return cpuTempCritical
+}
+
 const cardStyle = computed(() => {
-  const severity = props.node.online ? props.node.status : 'offline'
-  const token = severity === 'critical' ? 'critical' : severity === 'warning' ? 'warning' : severity === 'offline' ? 'offline' : 'success'
-  const glow = severity === 'critical' ? 'glow-critical' : severity === 'warning' ? 'glow-warning' : severity === 'offline' ? 'glow-accent' : 'glow-success'
-  return { '--node-tone': `var(--${token})`, '--node-glow': `var(--${glow})` }
+  if (!props.node.online) return { '--node-tone': 'var(--offline)', '--node-glow': 'var(--glow-accent)' }
+  if (isCriticalDueToCpuTemp()) return { '--node-tone': 'var(--critical)', '--node-glow': 'var(--glow-critical)' }
+  if (props.node.status?.toLowerCase() === 'critical') return { '--node-tone': 'var(--warning)', '--node-glow': 'var(--glow-warning)' }
+  if (props.node.status?.toLowerCase() === 'warning') return { '--node-tone': 'var(--warning)', '--node-glow': 'var(--glow-warning)' }
+  return { '--node-tone': 'var(--success)', '--node-glow': 'var(--glow-success)' }
 })
 
 const metrics = computed(() => {
@@ -191,14 +202,12 @@ function handleKeydown(event: KeyboardEvent) {
       <div class="node-info">
         <span class="node-type text-mono">{{ node.type }}</span>
         <h2 class="node-name">{{ node.name }}</h2>
-        <p class="node-platform text-mono">{{ node.os || 'unknown' }} / {{ node.platform || 'unknown' }}</p>
       </div>
       <div class="status-stack">
         <span class="status-badge" :class="statusClass">
           <span class="status-light"></span>
           {{ statusLabel }}
         </span>
-        <span v-if="node.status !== 'healthy' || !node.online" class="status-reason text-mono">{{ statusReason }}</span>
       </div>
     </div>
 
@@ -236,12 +245,12 @@ function handleKeydown(event: KeyboardEvent) {
   --node-tone: var(--success);
   --node-glow: var(--glow-success);
   position: relative;
-  min-height: 430px;
-  padding: 1rem;
+  min-height: 380px;
+  padding: 0.75rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.65rem;
   overflow: hidden;
   border-color: color-mix(in srgb, var(--node-tone) 32%, var(--border-color));
   box-shadow: var(--card-shadow), 0 0 18px color-mix(in srgb, var(--node-glow) 55%, transparent);
@@ -315,18 +324,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .node-name {
-  font-size: 1.06rem;
-  line-height: 1.1;
+  font-size: 0.95rem;
+  line-height: 1.15;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.node-platform {
-  margin-top: 0.35rem;
-  color: var(--text-secondary);
-  font-size: 0.68rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -353,14 +353,6 @@ function handleKeydown(event: KeyboardEvent) {
   border: 1px solid color-mix(in srgb, var(--node-tone) 44%, transparent);
 }
 
-.status-reason {
-  max-width: 150px;
-  color: var(--node-tone);
-  font-size: 0.58rem;
-  line-height: 1.25;
-  text-align: right;
-}
-
 .status-light {
   width: 7px;
   height: 7px;
@@ -372,14 +364,14 @@ function handleKeydown(event: KeyboardEvent) {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.72rem;
+  gap: 0.5rem;
 }
 
 .metric-tile {
   min-width: 0;
-  min-height: 108px;
-  padding: 0.68rem;
-  border-radius: 14px;
+  min-height: 92px;
+  padding: 0.5rem;
+  border-radius: 12px;
   background: var(--metric-tile-bg);
   border: 1px solid rgba(255,255,255,0.055);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
@@ -402,13 +394,13 @@ function handleKeydown(event: KeyboardEvent) {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.34rem;
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
 }
 
 .metric-label {
   color: var(--text-muted);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   letter-spacing: 0.1em;
   flex-shrink: 0;
 }
@@ -416,14 +408,14 @@ function handleKeydown(event: KeyboardEvent) {
 .metric-value-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
 .metric-copy strong {
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
 }
 
 .metric-alert-chip {
@@ -490,10 +482,6 @@ function handleKeydown(event: KeyboardEvent) {
 
   .status-stack {
     justify-items: start;
-  }
-
-  .status-reason {
-    text-align: left;
   }
 }
 </style>

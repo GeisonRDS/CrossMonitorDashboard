@@ -77,6 +77,29 @@ function humanBytes(bytes: number): string {
   return `${Number((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
+const statusCause = computed(() => {
+  const d = details.value
+  if (!d) return null
+  const cpu = d.cpuUsagePercent
+  const memory = d.memoryUsagePercent
+  const diskCritical = d.disks.find(item => item.usagePercent >= 90)
+  const tempCritical = d.temperatures.find(item => item.celsius >= 85)
+  const warningTemp = d.temperatures.find(item => item.celsius >= 70)
+  const collector = d.collectorStatuses.find(item => item.hasError)
+
+  if (cpu >= 90) return { text: `CPU em ${Math.round(cpu)}%`, level: 'critical' as const, type: 'cpu' as const }
+  if (memory >= 90) return { text: `RAM em ${Math.round(memory)}%`, level: 'critical' as const, type: 'memory' as const }
+  if (diskCritical) return { text: `Disco ${diskCritical.mountPoint} em ${Math.round(diskCritical.usagePercent)}%`, level: 'critical' as const, type: 'disk' as const }
+  if (tempCritical) return { text: `${tempCritical.sensor} a ${Math.round(tempCritical.celsius)}°C`, level: 'critical' as const, type: 'temperature' as const }
+  if (cpu >= 75) return { text: `CPU em ${Math.round(cpu)}%`, level: 'warning' as const, type: 'cpu' as const }
+  if (memory >= 75) return { text: `RAM em ${Math.round(memory)}%`, level: 'warning' as const, type: 'memory' as const }
+  if (d.disks.some(item => item.usagePercent >= 80)) return { text: `Disco com mais de 80% de uso`, level: 'warning' as const, type: 'disk' as const }
+  if (warningTemp) return { text: `${warningTemp.sensor} a ${Math.round(warningTemp.celsius)}°C`, level: 'warning' as const, type: 'temperature' as const }
+  if (collector) return { text: `Erro no coletor ${collector.name}`, level: 'warning' as const, type: 'collector' as const }
+  if (d.lastError) return { text: d.lastError, level: 'warning' as const, type: 'collector' as const }
+  return null
+})
+
 function humanUptime(uptime: string): string {
   if (!uptime) return '--'
   const seconds = parseInt(uptime)
@@ -107,6 +130,11 @@ function humanUptime(uptime: string): string {
           <span>v{{ details.agentVersion || '--' }}</span>
         </div>
       </section>
+
+      <div v-if="statusCause" class="cause-banner" :class="`cause-${statusCause.level}`">
+        <span class="cause-label">{{ statusCause.level === 'critical' ? 'CRITICAL' : 'WARNING' }}</span>
+        <span class="cause-text">{{ statusCause.text }}</span>
+      </div>
 
       <div v-if="!hasHistory" class="empty-history glass-card">
         Nenhum dado histórico disponível ainda. Aguarde alguns ciclos de polling.
@@ -144,7 +172,7 @@ function humanUptime(uptime: string): string {
         <section class="detail-section glass-card">
           <h3>Disks</h3>
           <div v-if="details.disks.length === 0" class="empty-inline">No disks reported.</div>
-          <div v-for="disk in details.disks" :key="disk.mountPoint" class="list-row">
+          <div v-for="disk in details.disks" :key="disk.mountPoint" class="list-row" :class="{ 'item-offending': disk.usagePercent >= 90 }">
             <span>{{ disk.mountPoint }} / {{ disk.filesystem }}</span>
             <strong>{{ humanBytes(disk.usedBytes) }} / {{ humanBytes(disk.totalBytes) }} ({{ Math.round(disk.usagePercent) }}%)</strong>
           </div>
@@ -162,7 +190,7 @@ function humanUptime(uptime: string): string {
         <section class="detail-section glass-card">
           <h3>Temperatures</h3>
           <div v-if="details.temperatures.length === 0" class="empty-inline">No temperature sensors reported.</div>
-          <div v-for="t in details.temperatures" :key="t.sensor" class="list-row">
+          <div v-for="t in details.temperatures" :key="t.sensor" class="list-row" :class="{ 'item-offending': t.celsius >= 85 }">
             <span>{{ t.sensor }}</span>
             <strong :class="t.celsius >= 85 ? 'status-critical' : t.celsius >= 70 ? 'status-warning' : 'status-ok'">{{ Math.round(t.celsius) }}°C</strong>
           </div>
@@ -171,7 +199,7 @@ function humanUptime(uptime: string): string {
         <section class="detail-section glass-card">
           <h3>Collectors</h3>
           <div v-if="details.collectorStatuses.length === 0" class="empty-inline">No collectors reported.</div>
-          <div v-for="c in details.collectorStatuses" :key="c.name" class="list-row">
+          <div v-for="c in details.collectorStatuses" :key="c.name" class="list-row" :class="{ 'item-offending': c.hasError }">
             <span>{{ c.name }}</span>
             <strong :class="c.hasError ? 'status-critical' : 'status-ok'">{{ c.enabled ? (c.hasError ? 'Error' : 'OK') : 'Disabled' }}</strong>
           </div>
@@ -307,6 +335,43 @@ function humanUptime(uptime: string): string {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
+}
+
+.cause-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.cause-banner.cause-critical {
+  background: color-mix(in srgb, var(--critical) 14%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--critical) 50%, transparent);
+  color: var(--critical);
+}
+
+.cause-banner.cause-warning {
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  color: var(--warning);
+}
+
+.cause-label {
+  font-weight: 800;
+  font-size: 0.65rem;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.list-row.item-offending {
+  border-color: var(--critical);
+  background: color-mix(in srgb, var(--critical) 10%, var(--metric-tile-bg));
+  box-shadow: 0 0 14px var(--glow-critical);
 }
 
 .empty-history,
