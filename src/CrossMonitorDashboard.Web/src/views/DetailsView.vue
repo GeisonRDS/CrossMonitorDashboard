@@ -55,10 +55,21 @@ function series(field: keyof Pick<HistoryDataPoint, 'cpuPercent' | 'memoryPercen
 }
 
 const networkSeries = computed(() => {
-  if (history.value.length === 0) return []
-  const base = history.value[0]
-  return history.value.map(p => Math.max(0, ((p.rxBytes - base.rxBytes) + (p.txBytes - base.txBytes)) / 1024 / 1024))
+  if (history.value.length < 2) return []
+  const result: number[] = []
+  for (let index = 1; index < history.value.length; index++) {
+    const previous = history.value[index - 1]
+    const current = history.value[index]
+    if (previous.networkInterfaceName && current.networkInterfaceName && previous.networkInterfaceName !== current.networkInterfaceName) {
+      result.push(0)
+      continue
+    }
+    result.push(Math.max(0, ((current.rxBytes - previous.rxBytes) + (current.txBytes - previous.txBytes)) / 1024 / 1024))
+  }
+  return result
 })
+
+const primaryNetworkInterface = computed(() => details.value?.networkInterfaces.find(item => item.isPrimary) ?? details.value?.networkInterfaces[0] ?? null)
 
 const chartMetrics = computed(() => {
   if (!details.value) return []
@@ -67,7 +78,7 @@ const chartMetrics = computed(() => {
     { key: 'memory' as MetricKey, label: translate('metrics.memoryFull'), value: `${Math.round(details.value.memoryUsagePercent)}%`, data: series('memoryPercent'), color: 'var(--warning)', unit: '%', max: 100 },
     { key: 'disk' as MetricKey, label: translate('metrics.diskFull'), value: `${Math.round(details.value.primaryDiskUsagePercent)}%`, data: series('diskPercent'), color: 'var(--success)', unit: '%', max: 100 },
     { key: 'temperature' as MetricKey, label: translate('metrics.temperatureFull'), value: details.value.primaryTemperatureCelsius == null ? '--' : `${Math.round(details.value.primaryTemperatureCelsius)}°C`, data: series('temperatureCelsius'), color: 'var(--critical)', unit: '°', max: 120 },
-    { key: 'network' as MetricKey, label: translate('metrics.networkDelta'), value: humanBytes((details.value.networkInterfaces[0]?.rxBytes ?? 0) + (details.value.networkInterfaces[0]?.txBytes ?? 0)), data: networkSeries.value, color: 'var(--accent-light)', unit: 'M', max: Math.max(10, ...networkSeries.value) }
+    { key: 'network' as MetricKey, label: translate('metrics.networkDelta'), value: humanBytes((primaryNetworkInterface.value?.rxBytes ?? 0) + (primaryNetworkInterface.value?.txBytes ?? 0)), data: networkSeries.value, color: 'var(--accent-light)', unit: 'M', max: Math.max(10, ...networkSeries.value) }
   ]
 })
 
@@ -183,8 +194,8 @@ function humanUptime(uptime: string): string {
         <section class="detail-section glass-card">
           <h3>{{ translate('details.network') }}</h3>
           <div v-if="details.networkInterfaces.length === 0" class="empty-inline">{{ translate('details.noNetwork') }}</div>
-          <div v-for="ni in details.networkInterfaces" :key="ni.name" class="list-row">
-            <span>{{ ni.name }}</span>
+          <div v-for="ni in details.networkInterfaces" :key="ni.name" class="list-row" :class="{ 'item-primary': ni.isPrimary }">
+            <span>{{ ni.name }} <em v-if="ni.isPrimary" class="primary-chip">{{ translate('details.primaryNetwork') }}</em></span>
             <strong>{{ translate('details.rx') }} {{ humanBytes(ni.rxBytes) }} / {{ translate('details.tx') }} {{ humanBytes(ni.txBytes) }}</strong>
           </div>
         </section>
@@ -374,6 +385,22 @@ function humanUptime(uptime: string): string {
   border-color: var(--critical);
   background: color-mix(in srgb, var(--critical) 10%, var(--metric-tile-bg));
   box-shadow: 0 0 14px var(--glow-critical);
+}
+
+.list-row.item-primary {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  background: color-mix(in srgb, var(--accent) 9%, var(--metric-tile-bg));
+}
+
+.primary-chip {
+  display: inline-flex;
+  margin-left: 0.35rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  font-style: normal;
+  font-size: 0.58rem;
 }
 
 .empty-history,

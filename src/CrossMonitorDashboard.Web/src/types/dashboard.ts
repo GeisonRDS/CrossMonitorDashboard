@@ -51,6 +51,7 @@ export interface NetworkInterfaceInfo {
   name: string
   rxBytes: number
   txBytes: number
+  isPrimary: boolean
 }
 
 export interface TemperatureInfo {
@@ -85,6 +86,7 @@ export interface HistoryDataPoint {
   temperatureCelsius: number
   rxBytes: number
   txBytes: number
+  networkInterfaceName: string
 }
 
 export interface VisualConfig {

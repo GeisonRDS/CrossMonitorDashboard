@@ -68,6 +68,7 @@ export const en = {
     collectorDisabled: 'Disabled',
     rx: 'RX',
     tx: 'TX',
+    primaryNetwork: 'used for card',
   },
   settings: {
     visualControl: 'Visual control',

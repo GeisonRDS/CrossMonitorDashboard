@@ -52,6 +52,10 @@ function rates(field: 'rxBytes' | 'txBytes') {
   for (let index = 1; index < points.length; index++) {
     const previous = points[index - 1]
     const current = points[index]
+    if (previous.networkInterfaceName && current.networkInterfaceName && previous.networkInterfaceName !== current.networkInterfaceName) {
+      result.push(0)
+      continue
+    }
     const seconds = Math.max(1, current.timestampUnix - previous.timestampUnix)
     result.push(Math.max(0, (current[field] - previous[field]) / seconds))
   }

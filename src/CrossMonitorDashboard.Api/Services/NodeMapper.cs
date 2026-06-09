@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using CrossMonitorDashboard.Api.Models;
 
 namespace CrossMonitorDashboard.Api.Services;
@@ -23,7 +25,7 @@ public static class NodeMapper
             : status?.LastSnapshotUnix > 0 ? status.LastSnapshotUnix : nowUnix;
 
         var primaryDisk = disks.FirstOrDefault();
-        var primaryNetwork = network.FirstOrDefault();
+        var primaryNetwork = SelectPrimaryNetworkInterface(network);
         var primaryTemperature = temperatures.FirstOrDefault();
         var lastError = BuildLastError(systemErrors, collectors);
         var severity = ComputeStatus(system, status);
@@ -91,7 +93,8 @@ public static class NodeMapper
             {
                 Name = n.Name,
                 RxBytes = n.RxBytes,
-                TxBytes = n.TxBytes
+                TxBytes = n.TxBytes,
+                IsPrimary = primaryNetwork is not null && string.Equals(n.Name, primaryNetwork.Name, StringComparison.OrdinalIgnoreCase)
             }).ToList(),
             Temperatures = temperatures.Select(t => new TemperatureInfo
             {
@@ -115,7 +118,8 @@ public static class NodeMapper
             DiskPercent = primaryDisk?.UsagePercent ?? 0,
             TemperatureCelsius = primaryTemperature?.TemperatureCelsius ?? 0,
             RxBytes = primaryNetwork?.RxBytes ?? 0,
-            TxBytes = primaryNetwork?.TxBytes ?? 0
+            TxBytes = primaryNetwork?.TxBytes ?? 0,
+            NetworkInterfaceName = primaryNetwork?.Name ?? ""
         };
 
         var history = existingHistory.ToList();
@@ -156,6 +160,104 @@ public static class NodeMapper
             return "warning";
 
         return "healthy";
+    }
+
+    public static CrossMonitorNetworkData? SelectPrimaryNetworkInterface(IEnumerable<CrossMonitorNetworkData>? interfaces)
+    {
+        var items = (interfaces ?? Enumerable.Empty<CrossMonitorNetworkData>()).ToList();
+        if (items.Count == 0) return null;
+
+        var usefulWithTraffic = items
+            .Where(n => HasTraffic(n) && IsUsefulNetworkInterface(n.Name))
+            .OrderByDescending(TotalTraffic)
+            .ThenByDescending(n => IsKnownPhysicalNetworkInterface(n.Name))
+            .ThenBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (usefulWithTraffic is not null) return usefulWithTraffic;
+
+        var anyWithTraffic = items
+            .Where(HasTraffic)
+            .OrderByDescending(TotalTraffic)
+            .ThenByDescending(n => IsKnownPhysicalNetworkInterface(n.Name))
+            .ThenBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (anyWithTraffic is not null) return anyWithTraffic;
+
+        return items
+            .OrderByDescending(n => IsUsefulNetworkInterface(n.Name))
+            .ThenByDescending(n => IsKnownPhysicalNetworkInterface(n.Name))
+            .ThenBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
+    private static bool HasTraffic(CrossMonitorNetworkData item) => TotalTraffic(item) > 0;
+
+    private static long TotalTraffic(CrossMonitorNetworkData item)
+        => Math.Max(0, item.RxBytes) + Math.Max(0, item.TxBytes);
+
+    private static bool IsUsefulNetworkInterface(string name)
+    {
+        var normalized = NormalizeNetworkName(name);
+        if (string.IsNullOrWhiteSpace(normalized)) return false;
+
+        var ignoredExactNames = new[] { "lo" };
+        if (ignoredExactNames.Any(exact => string.Equals(normalized, exact, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        var ignoredPrefixes = new[]
+        {
+            "loopback",
+            "loopback pseudo-interface",
+            "bluetooth network connection",
+            "conexao de rede bluetooth",
+            "teredo",
+            "isatap",
+            "veth",
+            "vethernet",
+            "br-",
+            "docker",
+            "virbr"
+        };
+
+        return !ignoredPrefixes.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsKnownPhysicalNetworkInterface(string name)
+    {
+        var normalized = NormalizeNetworkName(name);
+        var physicalPrefixes = new[]
+        {
+            "ethernet",
+            "wi-fi",
+            "wifi",
+            "rede ethernet",
+            "conexao local",
+            "local area connection",
+            "eth",
+            "enp",
+            "eno",
+            "ens",
+            "wlan",
+            "igb",
+            "em",
+            "re"
+        };
+
+        return physicalPrefixes.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeNetworkName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+
+        var normalized = value.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var c in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                builder.Append(c);
+        }
+        return builder.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
     }
 
     private static string BuildLastError(List<CrossMonitorError> systemErrors, List<CollectorStatus> collectors)

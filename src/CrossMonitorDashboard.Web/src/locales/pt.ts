@@ -68,6 +68,7 @@ export const pt = {
     collectorDisabled: 'Desabilitado',
     rx: 'RX',
     tx: 'TX',
+    primaryNetwork: 'usada no card',
   },
   settings: {
     visualControl: 'Controle visual',

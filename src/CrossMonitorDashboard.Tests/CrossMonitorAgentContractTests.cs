@@ -113,6 +113,104 @@ public class CrossMonitorAgentContractTests
     }
 
     [Fact]
+    public void BuildNodeState_WindowsEthernetZeroWifiTrafficChoosesWifi()
+    {
+        var state = BuildStateWithNetwork(new()
+        {
+            Network("Ethernet", 0, 0),
+            Network("Wi-Fi", 203488489, 30276788),
+            Network("Loopback Pseudo-Interface 1", 0, 0)
+        });
+
+        Assert.Equal("Wi-Fi", state.History.Single().NetworkInterfaceName);
+        Assert.Equal(203488489, state.History.Single().RxBytes);
+        Assert.True(state.Details!.NetworkInterfaces.Single(n => n.Name == "Wi-Fi").IsPrimary);
+    }
+
+    [Fact]
+    public void BuildNodeState_WindowsEthernetTrafficWifiZeroChoosesEthernet()
+    {
+        var state = BuildStateWithNetwork(new()
+        {
+            Network("Ethernet", 5000, 1000),
+            Network("Wi-Fi", 0, 0)
+        });
+
+        Assert.Equal("Ethernet", state.History.Single().NetworkInterfaceName);
+        Assert.Equal(5000, state.History.Single().RxBytes);
+        Assert.True(state.Details!.NetworkInterfaces.Single(n => n.Name == "Ethernet").IsPrimary);
+    }
+
+    [Fact]
+    public void BuildNodeState_LinuxMainInterfaceStillWorks()
+    {
+        var state = BuildStateWithNetwork(new()
+        {
+            Network("eno1", 100, 200)
+        });
+
+        Assert.Equal("eno1", state.History.Single().NetworkInterfaceName);
+        Assert.Equal(100, state.History.Single().RxBytes);
+        Assert.Equal(200, state.History.Single().TxBytes);
+    }
+
+    [Fact]
+    public void BuildNodeState_FreeBsdActiveInterfaceStillWorks()
+    {
+        var state = BuildStateWithNetwork(new()
+        {
+            Network("igb0", 9000, 3000)
+        });
+
+        Assert.Equal("igb0", state.History.Single().NetworkInterfaceName);
+    }
+
+    [Fact]
+    public void SelectPrimaryNetworkInterface_DoesNotChooseLoopbackWhenValidInterfaceExists()
+    {
+        var selected = NodeMapper.SelectPrimaryNetworkInterface(new List<CrossMonitorNetworkData>
+        {
+            Network("Loopback Pseudo-Interface 1", 999999, 999999),
+            Network("Wi-Fi", 1000, 500)
+        });
+
+        Assert.NotNull(selected);
+        Assert.Equal("Wi-Fi", selected!.Name);
+    }
+
+    [Fact]
+    public void SelectPrimaryNetworkInterface_DoesNotChooseBluetoothWhenValidInterfaceExists()
+    {
+        var selected = NodeMapper.SelectPrimaryNetworkInterface(new List<CrossMonitorNetworkData>
+        {
+            Network("Conexão de Rede Bluetooth 2", 999999, 999999),
+            Network("Ethernet", 1000, 500)
+        });
+
+        Assert.NotNull(selected);
+        Assert.Equal("Ethernet", selected!.Name);
+    }
+
+    [Fact]
+    public void SelectPrimaryNetworkInterface_EmptyListReturnsNull()
+    {
+        Assert.Null(NodeMapper.SelectPrimaryNetworkInterface(new List<CrossMonitorNetworkData>()));
+    }
+
+    [Fact]
+    public void DeserializeSystem_NetworkMissingCountersDoesNotBreakMapping()
+    {
+        var system = JsonSerializer.Deserialize<CrossMonitorSystem>(SystemWithPartialNetworkJson, JsonOptions)!;
+
+        var state = NodeMapper.BuildNodeState(Node, system, DeserializeStatus(), DeserializeVersion(), new(), 120, 1);
+
+        Assert.Single(state.Details!.NetworkInterfaces);
+        Assert.Equal("Wi-Fi", state.History.Single().NetworkInterfaceName);
+        Assert.Equal(0, state.History.Single().RxBytes);
+        Assert.Equal(0, state.History.Single().TxBytes);
+    }
+
+    [Fact]
     public void ComputeStatus_CollectorLastErrorGeneratesWarning()
     {
         var status = DeserializeStatus() with
@@ -182,6 +280,19 @@ public class CrossMonitorAgentContractTests
             120,
             1780549300);
     }
+
+    private static NodeState BuildStateWithNetwork(List<CrossMonitorNetworkData> network)
+    {
+        var system = JsonSerializer.Deserialize<CrossMonitorSystem>(SystemJson, JsonOptions)! with
+        {
+            Network = network
+        };
+
+        return NodeMapper.BuildNodeState(Node, system, DeserializeStatus(), DeserializeVersion(), new(), 120, 1780549300);
+    }
+
+    private static CrossMonitorNetworkData Network(string name, long rxBytes, long txBytes)
+        => new() { Name = name, RxBytes = rxBytes, TxBytes = txBytes };
 
     private static CrossMonitorSystem HealthySystem()
     {
@@ -299,6 +410,20 @@ public class CrossMonitorAgentContractTests
       "buildCommit": "dev",
       "buildDate": "2026-06-01",
       "goVersion": "go1.24"
+    }
+    """;
+
+    private const string SystemWithPartialNetworkJson = """
+    {
+      "agent": { "name": "CrossMonitor", "version": "0.1.0", "apiVersion": "v1" },
+      "host": { "name": "pc", "os": "windows", "platform": "windows", "platformVersion": "11", "kernelVersion": "", "architecture": "amd64", "uptimeSeconds": 1, "bootTimeUnix": 1 },
+      "cpu": { "model": "", "vendor": "", "coresPhysical": 1, "coresLogical": 1, "usagePercent": 1 },
+      "memory": { "totalBytes": 1, "availableBytes": 1, "usedBytes": 0, "freeBytes": 1, "usagePercent": 1 },
+      "disks": [],
+      "network": [{ "name": "Wi-Fi" }],
+      "temperatures": [],
+      "errors": [],
+      "timestampUnix": 1780549295
     }
     """;
 }
