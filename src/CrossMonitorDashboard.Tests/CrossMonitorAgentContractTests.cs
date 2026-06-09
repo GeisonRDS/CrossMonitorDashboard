@@ -294,16 +294,6 @@ public class CrossMonitorAgentContractTests
     }
 
     [Fact]
-    public void BuildNodeState_NetworkRateOutlierIsClamped()
-    {
-        var previous = new List<HistoryDataPoint> { HistoryNetwork("Wi-Fi", 0, 0, 1) };
-        var state = BuildStateWithNetwork(new() { Network("Wi-Fi", long.MaxValue, long.MaxValue) }, previous, 2);
-
-        Assert.Equal(10000, state.History.Last().DownloadMBps);
-        Assert.Equal(10000, state.History.Last().UploadMBps);
-    }
-
-    [Fact]
     public void ComputeStatus_CollectorLastErrorGeneratesWarning()
     {
         var status = DeserializeStatus() with

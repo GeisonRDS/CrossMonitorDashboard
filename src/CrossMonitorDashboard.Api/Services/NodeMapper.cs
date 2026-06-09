@@ -7,7 +7,6 @@ namespace CrossMonitorDashboard.Api.Services;
 public static class NodeMapper
 {
     private const double BytesPerMegabyte = 1024d * 1024d;
-    private const double NetworkRateOutlierMaxMBps = 10000d;
 
     public static NodeState BuildNodeState(
         NodeConfig node,
@@ -220,7 +219,7 @@ public static class NodeMapper
         if (currentBytes < previousBytes) return 0;
         var rate = (currentBytes - previousBytes) / (double)seconds / BytesPerMegabyte;
         if (!double.IsFinite(rate) || rate < 0) return 0;
-        return Math.Min(rate, NetworkRateOutlierMaxMBps);
+        return rate;
     }
 
     private static bool HasTraffic(CrossMonitorNetworkData item) => TotalTraffic(item) > 0;

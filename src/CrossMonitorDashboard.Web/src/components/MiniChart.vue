@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   chartType?: MetricChartType
   max?: number
   unit?: string
+  displayValue?: string
   compact?: boolean
 }>(), {
   color: 'var(--accent)',
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<{
   chartType: 'line-glow',
   max: 100,
   unit: '%',
+  displayValue: '',
   compact: true
 })
 
@@ -93,7 +95,7 @@ const chartOptions = computed(() => {
         axisLabel: { show: false },
         detail: {
           valueAnimation: true,
-          formatter: (value: number) => props.unit.includes('/s') ? `${value.toFixed(2)}${props.unit}` : `${Math.round(value)}${props.unit}`,
+          formatter: (value: number) => props.displayValue || `${Math.round(value)}${props.unit}`,
           color: textColor,
           fontSize: props.compact ? 12 : 22,
           fontWeight: 800,
