@@ -45,39 +45,30 @@ function historySeries(field: keyof Pick<HistoryDataPoint, 'cpuPercent' | 'memor
   return values.length > 0 ? values : fallback
 }
 
-function rates(field: 'rxBytes' | 'txBytes') {
-  const points = history.value
-  if (points.length < 2) return []
-  const result: number[] = []
-  for (let index = 1; index < points.length; index++) {
-    const previous = points[index - 1]
-    const current = points[index]
-    if (previous.networkInterfaceName && current.networkInterfaceName && previous.networkInterfaceName !== current.networkInterfaceName) {
-      result.push(0)
-      continue
-    }
-    const seconds = Math.max(1, current.timestampUnix - previous.timestampUnix)
-    result.push(Math.max(0, (current[field] - previous[field]) / seconds))
-  }
-  return result
+function networkSeries(field: 'downloadMBps' | 'uploadMBps') {
+  return history.value.map(point => clampNetworkRate(point[field]))
 }
 
-function formatRate(bytesPerSecond: number | null) {
-  if (bytesPerSecond == null || !Number.isFinite(bytesPerSecond)) return '--'
-  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s']
-  let value = bytesPerSecond
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
+function clampNetworkRate(value: number) {
+  if (!Number.isFinite(value) || value < 0) return 0
+  return Math.min(value, 10000)
 }
 
-const downloadRates = computed(() => rates('rxBytes'))
-const uploadRates = computed(() => rates('txBytes'))
-const downloadRate = computed(() => downloadRates.value.at(-1) ?? null)
-const uploadRate = computed(() => uploadRates.value.at(-1) ?? null)
+function networkMax(values: number[]) {
+  return Math.max(1, ...values.slice(-10).map(v => clampNetworkRate(v))) * 1.25
+}
+
+function formatNetworkRate(mbps: number | null) {
+  if (mbps == null || !Number.isFinite(mbps)) return '--'
+  if (mbps === 0) return '0.00 MB/s'
+  if (mbps < 0.01) return '0.01 MB/s'
+  return `${mbps.toFixed(2)} MB/s`
+}
+
+const downloadRates = computed(() => networkSeries('downloadMBps'))
+const uploadRates = computed(() => networkSeries('uploadMBps'))
+const downloadRate = computed(() => downloadRates.value.at(-1) ?? 0)
+const uploadRate = computed(() => uploadRates.value.at(-1) ?? 0)
 
 const statusClass = computed(() => {
   if (!props.node.online) return 'status-offline'
@@ -163,15 +154,15 @@ const cardStyle = computed(() => {
 
 const metrics = computed(() => {
   const networkType = visualSettings.value.metricCharts.network as MetricChartType
-  const downloadMax = Math.max(1, ...downloadRates.value)
-  const uploadMax = Math.max(1, ...uploadRates.value)
+  const downloadMax = networkMax(downloadRates.value)
+  const uploadMax = networkMax(uploadRates.value)
   return [
     { key: 'cpu' as MetricKey, id: 'cpu', label: metricLabels.value.cpu, value: `${Math.round(props.node.cpuUsagePercent)}%`, data: historySeries('cpuPercent', fallbackHistories.cpu.value), color: 'var(--accent)', unit: '%', max: 100, severity: visibleSeverity('cpu'), chartType: visualSettings.value.metricCharts.cpu },
     { key: 'temperature' as MetricKey, id: 'temperature', label: metricLabels.value.temperature, value: props.node.primaryTemperatureCelsius == null ? '--' : `${Math.round(props.node.primaryTemperatureCelsius)}°C`, data: historySeries('temperatureCelsius', fallbackHistories.temperature.value), color: 'var(--critical)', unit: '°', max: 120, severity: visibleSeverity('temperature'), chartType: visualSettings.value.metricCharts.temperature },
     { key: 'memory' as MetricKey, id: 'memory', label: metricLabels.value.memory, value: `${Math.round(props.node.memoryUsagePercent)}%`, data: historySeries('memoryPercent', fallbackHistories.memory.value), color: 'var(--warning)', unit: '%', max: 100, severity: visibleSeverity('memory'), chartType: visualSettings.value.metricCharts.memory },
     { key: 'disk' as MetricKey, id: 'disk', label: metricLabels.value.disk, value: `${Math.round(props.node.primaryDiskUsagePercent)}%`, data: historySeries('diskPercent', fallbackHistories.disk.value), color: 'var(--success)', unit: '%', max: 100, severity: visibleSeverity('disk'), chartType: visualSettings.value.metricCharts.disk },
-    { key: 'network' as MetricKey, id: 'download', label: metricLabels.value.download, value: formatRate(downloadRate.value), data: downloadRates.value, color: 'var(--accent-light)', unit: '', max: downloadMax, severity: 'normal', chartType: networkType },
-    { key: 'network' as MetricKey, id: 'upload', label: metricLabels.value.upload, value: formatRate(uploadRate.value), data: uploadRates.value, color: 'var(--text-secondary)', unit: '', max: uploadMax, severity: 'normal', chartType: networkType }
+    { key: 'network' as MetricKey, id: 'download', label: metricLabels.value.download, value: formatNetworkRate(downloadRate.value), data: downloadRates.value, color: 'var(--accent-light)', unit: ' MB/s', max: downloadMax, severity: 'normal', chartType: networkType },
+    { key: 'network' as MetricKey, id: 'upload', label: metricLabels.value.upload, value: formatNetworkRate(uploadRate.value), data: uploadRates.value, color: 'var(--text-secondary)', unit: ' MB/s', max: uploadMax, severity: 'normal', chartType: networkType }
   ]
 })
 

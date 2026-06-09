@@ -5,5 +5,7 @@ public record NetworkInterfaceInfo
     public string Name { get; init; } = "";
     public long RxBytes { get; init; }
     public long TxBytes { get; init; }
+    public double DownloadMBps { get; init; }
+    public double UploadMBps { get; init; }
     public bool IsPrimary { get; init; }
 }

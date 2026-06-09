@@ -54,22 +54,17 @@ function series(field: keyof Pick<HistoryDataPoint, 'cpuPercent' | 'memoryPercen
   return history.value.map(p => p[field])
 }
 
-const networkSeries = computed(() => {
-  if (history.value.length < 2) return []
-  const result: number[] = []
-  for (let index = 1; index < history.value.length; index++) {
-    const previous = history.value[index - 1]
-    const current = history.value[index]
-    if (previous.networkInterfaceName && current.networkInterfaceName && previous.networkInterfaceName !== current.networkInterfaceName) {
-      result.push(0)
-      continue
-    }
-    result.push(Math.max(0, ((current.rxBytes - previous.rxBytes) + (current.txBytes - previous.txBytes)) / 1024 / 1024))
-  }
-  return result
-})
+function networkRateSeries(field: keyof Pick<HistoryDataPoint, 'downloadMBps' | 'uploadMBps'>) {
+  return history.value.map(p => Math.max(0, Math.min(10000, Number(p[field]) || 0)))
+}
+
+const networkSeries = computed(() => networkRateSeries('downloadMBps'))
 
 const primaryNetworkInterface = computed(() => details.value?.networkInterfaces.find(item => item.isPrimary) ?? details.value?.networkInterfaces[0] ?? null)
+
+function networkMax(values: number[]) {
+  return Math.max(1, ...values.slice(-10)) * 1.25
+}
 
 const chartMetrics = computed(() => {
   if (!details.value) return []
@@ -78,9 +73,14 @@ const chartMetrics = computed(() => {
     { key: 'memory' as MetricKey, label: translate('metrics.memoryFull'), value: `${Math.round(details.value.memoryUsagePercent)}%`, data: series('memoryPercent'), color: 'var(--warning)', unit: '%', max: 100 },
     { key: 'disk' as MetricKey, label: translate('metrics.diskFull'), value: `${Math.round(details.value.primaryDiskUsagePercent)}%`, data: series('diskPercent'), color: 'var(--success)', unit: '%', max: 100 },
     { key: 'temperature' as MetricKey, label: translate('metrics.temperatureFull'), value: details.value.primaryTemperatureCelsius == null ? '--' : `${Math.round(details.value.primaryTemperatureCelsius)}°C`, data: series('temperatureCelsius'), color: 'var(--critical)', unit: '°', max: 120 },
-    { key: 'network' as MetricKey, label: translate('metrics.networkDelta'), value: humanBytes((primaryNetworkInterface.value?.rxBytes ?? 0) + (primaryNetworkInterface.value?.txBytes ?? 0)), data: networkSeries.value, color: 'var(--accent-light)', unit: 'M', max: Math.max(10, ...networkSeries.value) }
+    { key: 'network' as MetricKey, label: translate('metrics.networkDelta'), value: formatNetworkRate(primaryNetworkInterface.value?.downloadMBps ?? 0), data: networkSeries.value, color: 'var(--accent-light)', unit: ' MB/s', max: networkMax(networkSeries.value) }
   ]
 })
+
+const networkRateSummary = computed(() => ({
+  down: primaryNetworkInterface.value?.downloadMBps ?? 0,
+  up: primaryNetworkInterface.value?.uploadMBps ?? 0
+}))
 
 function humanBytes(bytes: number): string {
   if (!bytes) return '0 B'
@@ -88,6 +88,12 @@ function humanBytes(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1)
   return `${Number((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
+}
+
+function formatNetworkRate(mbps: number): string {
+  if (!Number.isFinite(mbps) || mbps <= 0) return '0.00 MB/s'
+  if (mbps < 0.01) return '0.01 MB/s'
+  return `${mbps.toFixed(2)} MB/s`
 }
 
 const statusCause = computed(() => {
@@ -193,6 +199,10 @@ function humanUptime(uptime: string): string {
 
         <section class="detail-section glass-card">
           <h3>{{ translate('details.network') }}</h3>
+          <div v-if="primaryNetworkInterface" class="network-primary-summary">
+            <span>{{ translate('details.primaryNetworkInterface', { name: primaryNetworkInterface.name }) }}</span>
+            <strong>DOWN {{ formatNetworkRate(networkRateSummary.down) }} / UP {{ formatNetworkRate(networkRateSummary.up) }}</strong>
+          </div>
           <div v-if="details.networkInterfaces.length === 0" class="empty-inline">{{ translate('details.noNetwork') }}</div>
           <div v-for="ni in details.networkInterfaces" :key="ni.name" class="list-row" :class="{ 'item-primary': ni.isPrimary }">
             <span>{{ ni.name }} <em v-if="ni.isPrimary" class="primary-chip">{{ translate('details.primaryNetwork') }}</em></span>
@@ -390,6 +400,30 @@ function humanUptime(uptime: string): string {
 .list-row.item-primary {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
   background: color-mix(in srgb, var(--accent) 9%, var(--metric-tile-bg));
+}
+
+.network-primary-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+  padding: 0.7rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent) 8%, var(--metric-tile-bg));
+  font-family: var(--font-mono);
+}
+
+.network-primary-summary span {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.network-primary-summary strong {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
 
 .primary-chip {

@@ -9,5 +9,7 @@ public record HistoryDataPoint
     public double TemperatureCelsius { get; init; }
     public long RxBytes { get; init; }
     public long TxBytes { get; init; }
+    public double DownloadMBps { get; init; }
+    public double UploadMBps { get; init; }
     public string NetworkInterfaceName { get; init; } = "";
 }

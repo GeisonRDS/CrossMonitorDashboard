@@ -69,6 +69,7 @@ export const en = {
     rx: 'RX',
     tx: 'TX',
     primaryNetwork: 'used for card',
+    primaryNetworkInterface: 'Interface used for card: {name}',
   },
   settings: {
     visualControl: 'Visual control',

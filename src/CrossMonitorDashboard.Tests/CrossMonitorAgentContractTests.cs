@@ -208,6 +208,99 @@ public class CrossMonitorAgentContractTests
         Assert.Equal("Wi-Fi", state.History.Single().NetworkInterfaceName);
         Assert.Equal(0, state.History.Single().RxBytes);
         Assert.Equal(0, state.History.Single().TxBytes);
+        Assert.Equal(0, state.History.Single().DownloadMBps);
+        Assert.Equal(0, state.History.Single().UploadMBps);
+    }
+
+    [Fact]
+    public void BuildNodeState_FirstNetworkCollectionGeneratesZeroRates()
+    {
+        var state = BuildStateWithNetwork(new() { Network("Wi-Fi", 203488489, 30276788) }, new(), 1780549300);
+
+        Assert.Equal(0, state.History.Single().DownloadMBps);
+        Assert.Equal(0, state.History.Single().UploadMBps);
+    }
+
+    [Fact]
+    public void BuildNodeState_SecondNetworkCollectionCalculatesMBpsRates()
+    {
+        var previous = new List<HistoryDataPoint>
+        {
+            HistoryNetwork("Wi-Fi", 203488489, 30276788, 1780549300)
+        };
+
+        var state = BuildStateWithNetwork(new()
+        {
+            Network("Wi-Fi", 204537065, 30381664)
+        }, previous, 1780549301);
+
+        var point = state.History.Last();
+        Assert.Equal(1.0, point.DownloadMBps, 3);
+        Assert.Equal(0.1, point.UploadMBps, 3);
+        Assert.Equal(1.0, state.Details!.NetworkInterfaces.Single(n => n.Name == "Wi-Fi").DownloadMBps, 3);
+    }
+
+    [Fact]
+    public void BuildNodeState_DoesNotUseAccumulatedBytesAsRate()
+    {
+        var state = BuildStateWithNetwork(new() { Network("Wi-Fi", 204537065, 30381664) }, new(), 1780549301);
+
+        Assert.Equal(0, state.History.Single().DownloadMBps);
+        Assert.Equal(204537065, state.History.Single().RxBytes);
+    }
+
+    [Fact]
+    public void CalculateNetworkRate_NegativeDeltaReturnsZero()
+    {
+        var previous = HistoryNetwork("Wi-Fi", 2000, 2000, 10);
+        var rate = NodeMapper.CalculateNetworkRate(Network("Wi-Fi", 1000, 1000), previous, 11);
+
+        Assert.Equal(0, rate.DownloadMBps);
+        Assert.Equal(0, rate.UploadMBps);
+    }
+
+    [Fact]
+    public void CalculateNetworkRate_InvalidIntervalReturnsZero()
+    {
+        var previous = HistoryNetwork("Wi-Fi", 1000, 1000, 10);
+        var rate = NodeMapper.CalculateNetworkRate(Network("Wi-Fi", 2000, 2000), previous, 10);
+
+        Assert.Equal(0, rate.DownloadMBps);
+        Assert.Equal(0, rate.UploadMBps);
+    }
+
+    [Fact]
+    public void CalculateNetworkRate_InterfaceChangeReturnsZero()
+    {
+        var previous = HistoryNetwork("Ethernet", 1000, 1000, 10);
+        var rate = NodeMapper.CalculateNetworkRate(Network("Wi-Fi", 2098152, 1053576), previous, 11);
+
+        Assert.Equal(0, rate.DownloadMBps);
+        Assert.Equal(0, rate.UploadMBps);
+    }
+
+    [Fact]
+    public void BuildNodeState_HistoryKeepsMaxPointsAndAddsNewestOnRight()
+    {
+        var history = Enumerable.Range(1, 10)
+            .Select(i => HistoryNetwork("Wi-Fi", i * 1000, i * 1000, i))
+            .ToList();
+
+        var state = BuildStateWithNetwork(new() { Network("Wi-Fi", 11000, 11000) }, history, 11, maxHistoryPoints: 10);
+
+        Assert.Equal(10, state.History.Count);
+        Assert.Equal(2, state.History.First().TimestampUnix);
+        Assert.Equal(11, state.History.Last().TimestampUnix);
+    }
+
+    [Fact]
+    public void BuildNodeState_NetworkRateOutlierIsClamped()
+    {
+        var previous = new List<HistoryDataPoint> { HistoryNetwork("Wi-Fi", 0, 0, 1) };
+        var state = BuildStateWithNetwork(new() { Network("Wi-Fi", long.MaxValue, long.MaxValue) }, previous, 2);
+
+        Assert.Equal(10000, state.History.Last().DownloadMBps);
+        Assert.Equal(10000, state.History.Last().UploadMBps);
     }
 
     [Fact]
@@ -282,17 +375,28 @@ public class CrossMonitorAgentContractTests
     }
 
     private static NodeState BuildStateWithNetwork(List<CrossMonitorNetworkData> network)
+        => BuildStateWithNetwork(network, new(), 1780549300);
+
+    private static NodeState BuildStateWithNetwork(
+        List<CrossMonitorNetworkData> network,
+        List<HistoryDataPoint> existingHistory,
+        long timestampUnix,
+        int maxHistoryPoints = 120)
     {
         var system = JsonSerializer.Deserialize<CrossMonitorSystem>(SystemJson, JsonOptions)! with
         {
-            Network = network
+            Network = network,
+            TimestampUnix = timestampUnix
         };
 
-        return NodeMapper.BuildNodeState(Node, system, DeserializeStatus(), DeserializeVersion(), new(), 120, 1780549300);
+        return NodeMapper.BuildNodeState(Node, system, DeserializeStatus(), DeserializeVersion(), existingHistory, maxHistoryPoints, timestampUnix);
     }
 
     private static CrossMonitorNetworkData Network(string name, long rxBytes, long txBytes)
         => new() { Name = name, RxBytes = rxBytes, TxBytes = txBytes };
+
+    private static HistoryDataPoint HistoryNetwork(string name, long rxBytes, long txBytes, long timestampUnix)
+        => new() { NetworkInterfaceName = name, RxBytes = rxBytes, TxBytes = txBytes, TimestampUnix = timestampUnix };
 
     private static CrossMonitorSystem HealthySystem()
     {

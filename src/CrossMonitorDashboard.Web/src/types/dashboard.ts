@@ -51,6 +51,8 @@ export interface NetworkInterfaceInfo {
   name: string
   rxBytes: number
   txBytes: number
+  downloadMBps: number
+  uploadMBps: number
   isPrimary: boolean
 }
 
@@ -86,6 +88,8 @@ export interface HistoryDataPoint {
   temperatureCelsius: number
   rxBytes: number
   txBytes: number
+  downloadMBps: number
+  uploadMBps: number
   networkInterfaceName: string
 }
 

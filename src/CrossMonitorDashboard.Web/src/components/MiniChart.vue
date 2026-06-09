@@ -46,10 +46,10 @@ function toRgba(color: string, alpha: number) {
 
 
 
-const chartWindowValues = computed(() => alignRight(props.data))
+const chartWindowValues = computed(() => alignRight(props.data, props.max))
 const radialValues = computed(() => {
   const v = props.data.at(-1)
-  return v != null ? [Math.max(0, Math.min(100, Number(v) || 0))] : [0]
+  return v != null ? [Math.max(0, Math.min(props.max, Number(v) || 0))] : [0]
 })
 const values = computed(() => props.chartType === 'radial-gauge' ? radialValues.value : chartWindowValues.value)
 const latest = computed(() => {
@@ -93,7 +93,7 @@ const chartOptions = computed(() => {
         axisLabel: { show: false },
         detail: {
           valueAnimation: true,
-          formatter: (value: number) => `${Math.round(value)}${props.unit}`,
+          formatter: (value: number) => props.unit.includes('/s') ? `${value.toFixed(2)}${props.unit}` : `${Math.round(value)}${props.unit}`,
           color: textColor,
           fontSize: props.compact ? 12 : 22,
           fontWeight: 800,

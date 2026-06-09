@@ -6,6 +6,9 @@ namespace CrossMonitorDashboard.Api.Services;
 
 public static class NodeMapper
 {
+    private const double BytesPerMegabyte = 1024d * 1024d;
+    private const double NetworkRateOutlierMaxMBps = 10000d;
+
     public static NodeState BuildNodeState(
         NodeConfig node,
         CrossMonitorSystem system,
@@ -29,6 +32,7 @@ public static class NodeMapper
         var primaryTemperature = temperatures.FirstOrDefault();
         var lastError = BuildLastError(systemErrors, collectors);
         var severity = ComputeStatus(system, status);
+        var networkRate = CalculateNetworkRate(primaryNetwork, existingHistory.LastOrDefault(), timestampUnix);
 
         var summary = new NodeSummary
         {
@@ -94,6 +98,8 @@ public static class NodeMapper
                 Name = n.Name,
                 RxBytes = n.RxBytes,
                 TxBytes = n.TxBytes,
+                DownloadMBps = primaryNetwork is not null && string.Equals(n.Name, primaryNetwork.Name, StringComparison.OrdinalIgnoreCase) ? networkRate.DownloadMBps : 0,
+                UploadMBps = primaryNetwork is not null && string.Equals(n.Name, primaryNetwork.Name, StringComparison.OrdinalIgnoreCase) ? networkRate.UploadMBps : 0,
                 IsPrimary = primaryNetwork is not null && string.Equals(n.Name, primaryNetwork.Name, StringComparison.OrdinalIgnoreCase)
             }).ToList(),
             Temperatures = temperatures.Select(t => new TemperatureInfo
@@ -119,6 +125,8 @@ public static class NodeMapper
             TemperatureCelsius = primaryTemperature?.TemperatureCelsius ?? 0,
             RxBytes = primaryNetwork?.RxBytes ?? 0,
             TxBytes = primaryNetwork?.TxBytes ?? 0,
+            DownloadMBps = networkRate.DownloadMBps,
+            UploadMBps = networkRate.UploadMBps,
             NetworkInterfaceName = primaryNetwork?.Name ?? ""
         };
 
@@ -190,10 +198,39 @@ public static class NodeMapper
             .FirstOrDefault();
     }
 
+    public static (double DownloadMBps, double UploadMBps) CalculateNetworkRate(
+        CrossMonitorNetworkData? current,
+        HistoryDataPoint? previous,
+        long currentTimestampUnix)
+    {
+        if (current is null || previous is null) return (0, 0);
+        if (string.IsNullOrWhiteSpace(previous.NetworkInterfaceName)) return (0, 0);
+        if (!string.Equals(previous.NetworkInterfaceName, current.Name, StringComparison.OrdinalIgnoreCase)) return (0, 0);
+
+        var seconds = currentTimestampUnix - previous.TimestampUnix;
+        if (seconds <= 0) return (0, 0);
+
+        return (
+            CalculateCounterRateMBps(previous.RxBytes, current.RxBytes, seconds),
+            CalculateCounterRateMBps(previous.TxBytes, current.TxBytes, seconds));
+    }
+
+    private static double CalculateCounterRateMBps(long previousBytes, long currentBytes, long seconds)
+    {
+        if (currentBytes < previousBytes) return 0;
+        var rate = (currentBytes - previousBytes) / (double)seconds / BytesPerMegabyte;
+        if (!double.IsFinite(rate) || rate < 0) return 0;
+        return Math.Min(rate, NetworkRateOutlierMaxMBps);
+    }
+
     private static bool HasTraffic(CrossMonitorNetworkData item) => TotalTraffic(item) > 0;
 
     private static long TotalTraffic(CrossMonitorNetworkData item)
-        => Math.Max(0, item.RxBytes) + Math.Max(0, item.TxBytes);
+    {
+        var rx = Math.Max(0, item.RxBytes);
+        var tx = Math.Max(0, item.TxBytes);
+        return long.MaxValue - rx < tx ? long.MaxValue : rx + tx;
+    }
 
     private static bool IsUsefulNetworkInterface(string name)
     {

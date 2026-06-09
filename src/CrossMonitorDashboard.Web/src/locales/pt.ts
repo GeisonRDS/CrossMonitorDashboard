@@ -69,6 +69,7 @@ export const pt = {
     rx: 'RX',
     tx: 'TX',
     primaryNetwork: 'usada no card',
+    primaryNetworkInterface: 'Interface usada no card: {name}',
   },
   settings: {
     visualControl: 'Controle visual',
