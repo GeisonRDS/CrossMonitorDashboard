@@ -34,7 +34,6 @@ function navigate(item: typeof menuItems[0]) {
         :aria-label="translate(item.labelKey)"
         @click="navigate(item)"
       >
-        <span class="active-beam"></span>
         <Icon class="menu-icon" :icon="item.icon" width="25" height="25" aria-hidden="true" />
         <span class="tooltip">{{ translate(item.labelKey) }}</span>
       </button>
@@ -117,28 +116,13 @@ function navigate(item: typeof menuItems[0]) {
 }
 
 .menu-item.active {
-  color: #fff;
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-  border-color: var(--accent-light);
-  box-shadow: 0 0 18px var(--glow-accent), inset 0 1px 0 rgba(255,255,255,0.28);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--accent);
 }
 
-.active-beam {
-  position: absolute;
-  left: 0;
-  width: 3px;
-  height: 24px;
-  border-radius: 0 4px 4px 0;
-  background: var(--accent-light);
-  box-shadow: 0 0 14px var(--glow-accent);
-  opacity: 0;
-  transform: scaleY(0.5);
-  transition: all var(--transition-speed);
-}
-
-.menu-item.active .active-beam {
-  opacity: 1;
-  transform: scaleY(1);
+.menu-item.active:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent);
 }
 
 .tooltip {

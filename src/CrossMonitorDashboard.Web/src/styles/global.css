@@ -311,8 +311,7 @@ select option {
 }
 
 [data-theme="black-white"] .menu-item.active {
-  background: #ffffff !important;
-  color: #000000 !important;
+  border-width: 2px !important;
 }
 
 [data-theme="terminal-mono"] .metric-tile.severity-warning {
