@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import SideMenu from './components/SideMenu.vue'
+import BackgroundEffects from './components/BackgroundEffects.vue'
 import { useTheme } from './composables/useTheme'
 import { useDashboardStore } from './stores/dashboardStore'
 
@@ -23,6 +24,7 @@ watch(() => visualSettings.value.refreshSeconds, (seconds) => {
     <div class="app-ambient app-ambient-a"></div>
     <div class="app-ambient app-ambient-b"></div>
     <div class="app-grid"></div>
+    <BackgroundEffects />
     <SideMenu />
     <main class="main-content">
       <router-view />

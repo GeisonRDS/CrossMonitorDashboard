@@ -6,6 +6,8 @@ export const VISUAL_SETTINGS_KEY = 'crossmonitor-dashboard-visual-settings'
 
 export type MetricChartType = 'line-glow' | 'radial-gauge' | 'bar-pulse'
 export type MetricKey = 'cpu' | 'memory' | 'disk' | 'temperature' | 'network'
+export type BackgroundEffect = 'none' | 'penguin' | 'snake' | 'solar-system'
+export type BackgroundEffectIntensity = 'low' | 'medium' | 'high'
 
 export interface VisualSettings {
   theme: string
@@ -23,6 +25,8 @@ export interface VisualSettings {
     overlay: number
   }
   metricCharts: Record<MetricKey, MetricChartType>
+  backgroundEffect: BackgroundEffect
+  backgroundEffectIntensity: BackgroundEffectIntensity
 }
 
 const defaultSettings: VisualSettings = {
@@ -37,7 +41,9 @@ const defaultSettings: VisualSettings = {
     disk: 'bar-pulse',
     temperature: 'line-glow',
     network: 'line-glow'
-  }
+  },
+  backgroundEffect: 'none',
+  backgroundEffectIntensity: 'medium'
 }
 
 const currentTheme = ref(defaultSettings.theme)
@@ -53,6 +59,8 @@ const defaultThemesList = [
 ]
 
 function normalizeSettings(value: Partial<VisualSettings> | null | undefined): VisualSettings {
+  const validEffects: BackgroundEffect[] = ['none', 'penguin', 'snake', 'solar-system']
+  const validIntensities: BackgroundEffectIntensity[] = ['low', 'medium', 'high']
   return {
     ...defaultSettings,
     ...value,
@@ -68,7 +76,13 @@ function normalizeSettings(value: Partial<VisualSettings> | null | undefined): V
     metricCharts: {
       ...defaultSettings.metricCharts,
       ...value?.metricCharts
-    }
+    },
+    backgroundEffect: validEffects.includes(value?.backgroundEffect as BackgroundEffect)
+      ? (value!.backgroundEffect as BackgroundEffect)
+      : defaultSettings.backgroundEffect,
+    backgroundEffectIntensity: validIntensities.includes(value?.backgroundEffectIntensity as BackgroundEffectIntensity)
+      ? (value!.backgroundEffectIntensity as BackgroundEffectIntensity)
+      : defaultSettings.backgroundEffectIntensity
   }
 }
 

@@ -46,7 +46,9 @@ const localSettings = reactive<VisualSettings>({
     disk: 'bar-pulse',
     temperature: 'line-glow',
     network: 'line-glow'
-  }
+  },
+  backgroundEffect: 'none',
+  backgroundEffectIntensity: 'medium'
 })
 
 onMounted(async () => {
@@ -312,6 +314,27 @@ async function removeBackgroundImage() {
       <div class="setting-row">
         <label>{{ translate('settings.overlay', { value: Math.round(localSettings.background.overlay * 100) }) }}</label>
         <input type="range" v-model.number="localSettings.background.overlay" :min="0" :max="1" :step="0.05" class="setting-slider" />
+      </div>
+    </section>
+
+    <section class="settings-section glass-card">
+      <div class="section-title"><h3>{{ translate('settings.backgroundEffect') }}</h3></div>
+      <div class="setting-row">
+        <label>{{ translate('settings.backgroundEffect') }}</label>
+        <select v-model="localSettings.backgroundEffect" class="setting-input" @change="saveImmediately">
+          <option value="none">{{ translate('settings.backgroundEffectNone') }}</option>
+          <option value="penguin">{{ translate('settings.backgroundEffectPenguin') }}</option>
+          <option value="snake">{{ translate('settings.backgroundEffectSnake') }}</option>
+          <option value="solar-system">{{ translate('settings.backgroundEffectSolarSystem') }}</option>
+        </select>
+      </div>
+      <div v-if="localSettings.backgroundEffect !== 'none'" class="setting-row">
+        <label>{{ translate('settings.backgroundEffectIntensity') }}</label>
+        <select v-model="localSettings.backgroundEffectIntensity" class="setting-input" @change="saveImmediately">
+          <option value="low">{{ translate('settings.low') }}</option>
+          <option value="medium">{{ translate('settings.medium') }}</option>
+          <option value="high">{{ translate('settings.high') }}</option>
+        </select>
       </div>
     </section>
 
