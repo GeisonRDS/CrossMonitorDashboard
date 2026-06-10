@@ -3,10 +3,15 @@ import assert from 'node:assert/strict'
 
 import {
   applyCardOrder,
+  applyMetricOrder,
   dashboardLayoutStorageKey,
+  defaultMetricOrder,
   getDashboardLayout,
+  getMetricOrder,
+  getMetricOrders,
   resetDashboardLayout,
   saveDashboardLayout,
+  saveMetricOrder,
   validateCardOrder,
 } from '../src/utils/dashboardLayoutStore.ts'
 import {
@@ -73,8 +78,9 @@ test('save stores versioned card order with only string ids once', () => {
   saveDashboardLayout(['bravo', 'alpha', 'bravo', 10])
 
   assert.deepEqual(JSON.parse(localStorage.getItem(dashboardLayoutStorageKey)), {
-    version: 1,
-    cardOrder: ['bravo', 'alpha']
+    version: 2,
+    cardOrder: ['bravo', 'alpha'],
+    metricOrders: {}
   })
 })
 
@@ -94,6 +100,53 @@ test('polling with a refreshed node list preserves saved order', () => {
   const ordered = applyCardOrder(refreshedNodes, getDashboardLayout())
 
   assert.deepEqual(ordered.map(node => node.id), ['charlie', 'alpha', 'bravo'])
+})
+
+test('default metric order is applied when no metric order is saved', () => {
+  assert.deepEqual(applyMetricOrder(defaultMetricOrder.map(id => ({ id })), getMetricOrder('alpha')).map(metric => metric.id), [...defaultMetricOrder])
+})
+
+test('saved metric order is applied per node', () => {
+  saveMetricOrder('alpha', ['memory', 'disk', 'cpu', 'temperature', 'download', 'upload'])
+
+  assert.deepEqual(getMetricOrder('alpha'), ['memory', 'disk', 'cpu', 'temperature', 'download', 'upload'])
+  assert.deepEqual(applyMetricOrder(defaultMetricOrder.map(id => ({ id })), getMetricOrder('alpha')).map(metric => metric.id), ['memory', 'disk', 'cpu', 'temperature', 'download', 'upload'])
+})
+
+test('new metric ids append after saved metric order', () => {
+  const metrics = [...defaultMetricOrder, 'fan'].map(id => ({ id }))
+
+  assert.deepEqual(applyMetricOrder(metrics, ['memory', 'cpu']).map(metric => metric.id), ['memory', 'cpu', 'temperature', 'disk', 'download', 'upload', 'fan'])
+})
+
+test('unknown metric ids are ignored', () => {
+  saveMetricOrder('alpha', ['unknown', 'upload', 'cpu'])
+
+  assert.deepEqual(getMetricOrder('alpha'), ['upload', 'cpu'])
+})
+
+test('saving metric order preserves card order', () => {
+  saveDashboardLayout(['charlie', 'alpha'])
+  saveMetricOrder('alpha', ['upload', 'download', 'cpu'])
+
+  assert.deepEqual(getDashboardLayout(), ['charlie', 'alpha'])
+})
+
+test('saving metric order affects only the selected node', () => {
+  saveMetricOrder('alpha', ['memory', 'cpu'])
+  saveMetricOrder('bravo', ['upload', 'download'])
+
+  assert.deepEqual(getMetricOrders(), {
+    alpha: ['memory', 'cpu'],
+    bravo: ['upload', 'download']
+  })
+})
+
+test('polling with refreshed metric values preserves saved metric order', () => {
+  saveMetricOrder('alpha', ['upload', 'download', 'cpu'])
+  const refreshedMetrics = defaultMetricOrder.map(id => ({ id, value: Math.random() }))
+
+  assert.deepEqual(applyMetricOrder(refreshedMetrics, getMetricOrder('alpha')).map(metric => metric.id), ['upload', 'download', 'cpu', 'temperature', 'memory', 'disk'])
 })
 
 test('reset removes only dashboard layout key', () => {

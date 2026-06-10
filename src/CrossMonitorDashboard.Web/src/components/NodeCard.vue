@@ -1,16 +1,50 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { NodeSummary, NodeDetails, HistoryDataPoint } from '../types/dashboard'
 import { useTheme, type MetricKey, type MetricChartType } from '../composables/useTheme'
 import { useI18n } from '../composables/useI18n'
 import MiniChart from './MiniChart.vue'
 import { formatNetworkRateMBps, networkChartSeries, sanitizeNetworkRateMBps } from '../utils/networkChart'
+import { applyMetricOrder, defaultMetricOrder, getMetricOrder, saveMetricOrder } from '../utils/dashboardLayoutStore'
+import { calculateDragOffset, calculateDropIndex, didPassDragThreshold, insertDraggedCard, removeDraggedCard } from '../utils/dashboardDragLayout'
 
 const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null; navigationDisabled?: boolean }>()
 const router = useRouter()
 const { currentTheme, visualSettings } = useTheme()
 const { translate } = useI18n()
+const metricDragThresholdPx = 7
+
+interface PendingMetricDrag {
+  metricId: string
+  pointerId: number
+  startX: number
+  startY: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  order: string[]
+}
+
+interface MetricDragSession {
+  metricId: string
+  pointerId: number
+  offsetX: number
+  offsetY: number
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+const metricGridElement = ref<HTMLElement | null>(null)
+const pendingMetricDrag = ref<PendingMetricDrag | null>(null)
+const metricDragSession = ref<MetricDragSession | null>(null)
+const draftMetricOrder = ref<string[]>([])
+const savedMetricOrder = ref<string[]>(getMetricOrder(props.node.id, defaultMetricOrder))
+const suppressMetricClick = ref(false)
+let metricClickSuppressTimer: ReturnType<typeof setTimeout> | null = null
 
 const fallbackHistories = {
   cpu: ref<number[]>([]),
@@ -125,7 +159,7 @@ const causerMetricId = computed(() => findIssues().metric)
 const findIssuesResult = computed(() => findIssues())
 
 const cardSeverity = computed(() => {
-  const severities = metrics.value.map(m => m.severity)
+  const severities = baseMetrics.value.map(m => m.severity)
   if (severities.includes('critical')) return 'critical'
   if (severities.includes('warning')) return 'warning'
   return 'success'
@@ -139,7 +173,7 @@ const cardStyle = computed(() => {
   return { '--node-tone': 'var(--success)', '--node-glow': 'var(--glow-success)' }
 })
 
-const metrics = computed(() => {
+const baseMetrics = computed(() => {
   const networkType = visualSettings.value.metricCharts.network as MetricChartType
   return [
     { key: 'cpu' as MetricKey, id: 'cpu', label: metricLabels.value.cpu, value: `${Math.round(props.node.cpuUsagePercent)}%`, data: historySeries('cpuPercent', fallbackHistories.cpu.value), color: 'var(--accent)', unit: '%', max: 100, severity: visibleSeverity('cpu'), chartType: visualSettings.value.metricCharts.cpu },
@@ -151,6 +185,37 @@ const metrics = computed(() => {
   ]
 })
 
+const metrics = computed(() => {
+  const ordered = applyMetricOrder(baseMetrics.value, metricDragSession.value ? draftMetricOrder.value : savedMetricOrder.value)
+  return metricDragSession.value ? ordered.filter(metric => metric.id !== metricDragSession.value?.metricId) : ordered
+})
+
+const floatingMetric = computed(() => {
+  const metricId = metricDragSession.value?.metricId
+  return metricId ? baseMetrics.value.find(metric => metric.id === metricId) ?? null : null
+})
+
+watch(
+  () => props.node.id,
+  nodeId => {
+    savedMetricOrder.value = getMetricOrder(nodeId, defaultMetricOrder)
+    draftMetricOrder.value = []
+  }
+)
+
+watch(
+  () => baseMetrics.value.map(metric => metric.id),
+  ids => {
+    if (!metricDragSession.value) return
+    draftMetricOrder.value = removeDraggedCard(completeMetricOrder(draftMetricOrder.value, ids), metricDragSession.value.metricId)
+  }
+)
+
+onBeforeUnmount(() => {
+  removeMetricPointerListeners()
+  if (metricClickSuppressTimer) clearTimeout(metricClickSuppressTimer)
+})
+
 const lastUpdate = computed(() => {
   if (!props.node.lastUpdateUnix) return '--'
   const diff = Math.max(0, Date.now() / 1000 - props.node.lastUpdateUnix)
@@ -160,13 +225,192 @@ const lastUpdate = computed(() => {
   return `${Math.round(diff / 86400)}${translate('settings.day')}`
 })
 
+function completeMetricOrder(order: string[], metricIds = baseMetrics.value.map(metric => metric.id)) {
+  const knownIds = new Set(order)
+  return [...order.filter(id => metricIds.includes(id)), ...metricIds.filter(id => !knownIds.has(id))]
+}
+
+function currentMetricIds() {
+  return metrics.value.map(metric => metric.id)
+}
+
+function onMetricPointerDown(event: PointerEvent, metricId: string) {
+  if (event.button !== 0 || (event.pointerType === 'mouse' && event.buttons !== 1)) return
+  event.stopPropagation()
+
+  const tile = event.currentTarget as HTMLElement
+  const rect = tile.getBoundingClientRect()
+  const offset = calculateDragOffset({ clientX: event.clientX, clientY: event.clientY }, rect)
+
+  pendingMetricDrag.value = {
+    metricId,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    offsetX: offset.x,
+    offsetY: offset.y,
+    width: rect.width,
+    height: rect.height,
+    order: applyMetricOrder(baseMetrics.value, savedMetricOrder.value).map(metric => metric.id)
+  }
+
+  window.addEventListener('pointermove', onMetricPointerMove, { passive: false })
+  window.addEventListener('pointerup', onMetricPointerUp)
+  window.addEventListener('pointercancel', onMetricPointerCancel)
+}
+
+function onMetricPointerMove(event: PointerEvent) {
+  const pending = pendingMetricDrag.value
+  const session = metricDragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
+
+  if (!session && pending) {
+    const passedThreshold = didPassDragThreshold(
+      { clientX: pending.startX, clientY: pending.startY },
+      { clientX: event.clientX, clientY: event.clientY },
+      metricDragThresholdPx
+    )
+    if (!passedThreshold) return
+    startMetricDrag(event, pending)
+  } else if (session) {
+    updateFloatingMetricPosition(event)
+  }
+
+  event.preventDefault()
+}
+
+function startMetricDrag(event: PointerEvent, pending: PendingMetricDrag) {
+  const first = measureMetricTiles()
+  draftMetricOrder.value = removeDraggedCard(pending.order, pending.metricId)
+  metricDragSession.value = {
+    metricId: pending.metricId,
+    pointerId: pending.pointerId,
+    offsetX: pending.offsetX,
+    offsetY: pending.offsetY,
+    left: event.clientX - pending.offsetX,
+    top: event.clientY - pending.offsetY,
+    width: pending.width,
+    height: pending.height
+  }
+  nextTick(() => animateMetricTiles(first))
+}
+
+function updateFloatingMetricPosition(event: PointerEvent) {
+  const session = metricDragSession.value
+  if (!session) return
+  metricDragSession.value = {
+    ...session,
+    left: event.clientX - session.offsetX,
+    top: event.clientY - session.offsetY
+  }
+}
+
+async function onMetricPointerUp(event: PointerEvent) {
+  const pending = pendingMetricDrag.value
+  const session = metricDragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
+
+  if (session) {
+    updateFloatingMetricPosition(event)
+    const first = measureMetricTiles()
+    const dropIndex = calculateDropIndex(
+      { clientX: event.clientX, clientY: event.clientY },
+      metricTileElements().map(element => element.getBoundingClientRect())
+    )
+    const nextOrder = insertDraggedCard(currentMetricIds(), session.metricId, dropIndex)
+    saveMetricOrder(props.node.id, nextOrder, defaultMetricOrder)
+    savedMetricOrder.value = nextOrder
+    suppressGeneratedMetricClick()
+    endMetricDrag()
+    await nextTick()
+    animateMetricTiles(first)
+    return
+  }
+
+  endMetricDrag()
+}
+
+function onMetricPointerCancel(event: PointerEvent) {
+  const pending = pendingMetricDrag.value
+  const session = metricDragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
+  endMetricDrag()
+}
+
+function endMetricDrag() {
+  pendingMetricDrag.value = null
+  metricDragSession.value = null
+  draftMetricOrder.value = []
+  removeMetricPointerListeners()
+}
+
+function removeMetricPointerListeners() {
+  window.removeEventListener('pointermove', onMetricPointerMove)
+  window.removeEventListener('pointerup', onMetricPointerUp)
+  window.removeEventListener('pointercancel', onMetricPointerCancel)
+}
+
+function suppressGeneratedMetricClick() {
+  suppressMetricClick.value = true
+  if (metricClickSuppressTimer) clearTimeout(metricClickSuppressTimer)
+  metricClickSuppressTimer = setTimeout(() => {
+    suppressMetricClick.value = false
+  }, 250)
+}
+
+function onMetricClick(event: MouseEvent) {
+  if (!suppressMetricClick.value) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  suppressMetricClick.value = false
+}
+
+function metricTileElements() {
+  return Array.from(metricGridElement.value?.querySelectorAll<HTMLElement>('[data-metric-id]') ?? [])
+}
+
+function measureMetricTiles() {
+  const positions = new Map<string, DOMRect>()
+  metricTileElements().forEach(element => {
+    positions.set(element.dataset.metricId ?? '', element.getBoundingClientRect())
+  })
+  return positions
+}
+
+function animateMetricTiles(first: Map<string, DOMRect>) {
+  metricTileElements().forEach(element => {
+    const metricId = element.dataset.metricId ?? ''
+    const before = first.get(metricId)
+    if (!before) return
+    const after = element.getBoundingClientRect()
+    const dx = before.left - after.left
+    const dy = before.top - after.top
+    if (!dx && !dy) return
+    element.animate([
+      { transform: `translate(${dx}px, ${dy}px)` },
+      { transform: 'translate(0, 0)' }
+    ], { duration: 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' })
+  })
+}
+
+const floatingMetricStyle = computed(() => {
+  const session = metricDragSession.value
+  if (!session) return undefined
+  return {
+    left: `${session.left}px`,
+    top: `${session.top}px`,
+    width: `${session.width}px`,
+    height: `${session.height}px`
+  }
+})
+
 function goToDetails() {
-  if (props.navigationDisabled) return
+  if (props.navigationDisabled || metricDragSession.value || suppressMetricClick.value) return
   router.push(`/nodes/${props.node.id}`)
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (props.navigationDisabled) return
+  if (props.navigationDisabled || metricDragSession.value) return
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     goToDetails()
@@ -205,8 +449,16 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
     </div>
 
-    <div class="metrics-grid">
-      <section v-for="metric in metrics" :key="metric.id" class="metric-tile" :class="[`severity-${metric.severity}`, { 'is-causer': metric.id === causerMetricId }]">
+    <div ref="metricGridElement" class="metrics-grid" :class="{ 'is-metric-dragging': metricDragSession }">
+      <section
+        v-for="metric in metrics"
+        :key="metric.id"
+        class="metric-tile"
+        :class="[`severity-${metric.severity}`, { 'is-causer': metric.id === causerMetricId }]"
+        :data-metric-id="metric.id"
+        @pointerdown="onMetricPointerDown($event, metric.id)"
+        @click.capture="onMetricClick"
+      >
         <div class="metric-copy">
           <span class="metric-label text-mono">{{ metric.label }}</span>
           <span class="metric-value-wrap">
@@ -225,6 +477,29 @@ function handleKeydown(event: KeyboardEvent) {
         />
       </section>
     </div>
+
+    <Teleport to="body">
+      <div v-if="floatingMetric && metricDragSession" class="floating-metric-shell" :style="floatingMetricStyle" aria-hidden="true">
+        <section class="metric-tile floating-metric" :class="[`severity-${floatingMetric.severity}`, { 'is-causer': floatingMetric.id === causerMetricId }]">
+          <div class="metric-copy">
+            <span class="metric-label text-mono">{{ floatingMetric.label }}</span>
+            <span class="metric-value-wrap">
+              <strong>{{ floatingMetric.value }}</strong>
+              <span v-if="floatingMetric.id === causerMetricId" class="metric-alert-chip" :class="statusClass">{{ findIssuesResult.level === 'critical' ? 'CRITICAL' : 'WARNING' }}</span>
+            </span>
+          </div>
+          <MiniChart
+            :data="floatingMetric.data"
+            :color="floatingMetric.color"
+            :height="floatingMetric.chartType === 'radial-gauge' ? 54 : 42"
+            :chart-type="floatingMetric.chartType"
+            :unit="floatingMetric.unit"
+            :max="floatingMetric.max"
+            :display-value="floatingMetric.chartLabel"
+          />
+        </section>
+      </div>
+    </Teleport>
 
     <div v-if="node.lastError" class="node-error text-mono">{{ node.lastError }}</div>
 
@@ -374,6 +649,10 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 0.5rem;
 }
 
+.metrics-grid.is-metric-dragging .metric-tile {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .metric-tile {
   min-width: 0;
   min-height: 92px;
@@ -383,6 +662,28 @@ function handleKeydown(event: KeyboardEvent) {
   border: 1px solid rgba(255,255,255,0.055);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
   transition: border-color var(--transition-speed), box-shadow var(--transition-speed), background var(--transition-speed);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.metric-tile:active,
+.floating-metric {
+  cursor: grabbing;
+}
+
+.floating-metric-shell {
+  position: fixed;
+  z-index: 1200;
+  pointer-events: none;
+  transform: scale(1.02);
+  transform-origin: center;
+  filter: drop-shadow(0 14px 24px color-mix(in srgb, var(--glow-accent) 46%, transparent));
+}
+
+.floating-metric-shell .metric-tile {
+  height: 100%;
+  margin: 0;
 }
 
 .metric-tile.severity-warning {
