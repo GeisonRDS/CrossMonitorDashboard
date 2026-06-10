@@ -4,6 +4,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import { useI18n } from '../composables/useI18n'
 import NodeCard from '../components/NodeCard.vue'
 import { applyCardOrder, getDashboardLayout, saveDashboardLayout, validateCardOrder } from '../utils/dashboardLayoutStore'
+import { calculateDragOffset, calculateDropIndex, didPassDragThreshold, insertDraggedCard, removeDraggedCard } from '../utils/dashboardDragLayout'
 
 const dragThresholdPx = 7
 const store = useDashboardStore()
@@ -14,24 +15,48 @@ interface PendingDrag {
   pointerId: number
   startX: number
   startY: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  order: string[]
+}
+
+interface DragSession {
+  nodeId: string
+  pointerId: number
+  offsetX: number
+  offsetY: number
+  left: number
+  top: number
+  width: number
+  height: number
 }
 
 const savedOrder = ref<string[]>(getDashboardLayout())
 const draftOrder = ref<string[]>([])
 const pendingDrag = ref<PendingDrag | null>(null)
-const dragNodeId = ref<string | null>(null)
-const dragOffset = ref({ x: 0, y: 0 })
-const suppressClickNodeId = ref<string | null>(null)
+const dragSession = ref<DragSession | null>(null)
+const suppressNextClick = ref(false)
 const gridElement = ref<HTMLElement | null>(null)
 let clickSuppressTimer: ReturnType<typeof setTimeout> | null = null
 
-const displayedNodes = computed(() => applyCardOrder(store.nodes.value, dragNodeId.value ? draftOrder.value : savedOrder.value))
+const displayedNodes = computed(() => {
+  const ordered = applyCardOrder(store.nodes.value, dragSession.value ? draftOrder.value : savedOrder.value)
+  return dragSession.value ? ordered.filter(node => node.id !== dragSession.value?.nodeId) : ordered
+})
+
+const floatingNode = computed(() => {
+  const nodeId = dragSession.value?.nodeId
+  return nodeId ? store.nodes.value.find(node => node.id === nodeId) ?? null : null
+})
 
 watch(
   () => store.nodes.value.map(node => node.id),
   () => {
-    if (!dragNodeId.value) return
-    draftOrder.value = completeOrder(validateCardOrder(draftOrder.value, store.nodes.value))
+    const session = dragSession.value
+    if (!session) return
+    draftOrder.value = removeDraggedCard(completeOrder(validateCardOrder(draftOrder.value, store.nodes.value)), session.nodeId)
   }
 )
 
@@ -53,13 +78,22 @@ function onPointerDown(event: PointerEvent, nodeId: string) {
   if (event.button !== 0 || (event.pointerType === 'mouse' && event.buttons !== 1)) return
   if ((event.target as HTMLElement).closest('button, a, input, select, textarea')) return
 
+  const shell = (event.currentTarget as HTMLElement)
+  const rect = shell.getBoundingClientRect()
+  const offset = calculateDragOffset({ clientX: event.clientX, clientY: event.clientY }, rect)
+
   pendingDrag.value = {
     nodeId,
     pointerId: event.pointerId,
     startX: event.clientX,
-    startY: event.clientY
+    startY: event.clientY,
+    offsetX: offset.x,
+    offsetY: offset.y,
+    width: rect.width,
+    height: rect.height,
+    order: applyCardOrder(store.nodes.value, savedOrder.value).map(node => node.id)
   }
-  draftOrder.value = currentNodeIds()
+
   window.addEventListener('pointermove', onPointerMove, { passive: false })
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('pointercancel', onPointerCancel)
@@ -67,31 +101,70 @@ function onPointerDown(event: PointerEvent, nodeId: string) {
 
 function onPointerMove(event: PointerEvent) {
   const pending = pendingDrag.value
-  if (!pending || event.pointerId !== pending.pointerId) return
+  const session = dragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
 
-  const x = event.clientX - pending.startX
-  const y = event.clientY - pending.startY
-  const hasMoved = Math.hypot(x, y) >= dragThresholdPx
-
-  if (!dragNodeId.value) {
-    if (!hasMoved) return
-    dragNodeId.value = pending.nodeId
+  if (!session && pending) {
+    const passedThreshold = didPassDragThreshold(
+      { clientX: pending.startX, clientY: pending.startY },
+      { clientX: event.clientX, clientY: event.clientY },
+      dragThresholdPx
+    )
+    if (!passedThreshold) return
+    startDrag(event, pending)
+  } else if (session) {
+    updateFloatingPosition(event)
   }
 
   event.preventDefault()
-  dragOffset.value = { x, y }
-  reorderForPointer(event.clientX, event.clientY)
 }
 
-function onPointerUp(event: PointerEvent) {
-  const pending = pendingDrag.value
-  if (!pending || event.pointerId !== pending.pointerId) return
+function startDrag(event: PointerEvent, pending: PendingDrag) {
+  const first = measureCards()
+  draftOrder.value = removeDraggedCard(pending.order, pending.nodeId)
+  dragSession.value = {
+    nodeId: pending.nodeId,
+    pointerId: pending.pointerId,
+    offsetX: pending.offsetX,
+    offsetY: pending.offsetY,
+    left: event.clientX - pending.offsetX,
+    top: event.clientY - pending.offsetY,
+    width: pending.width,
+    height: pending.height
+  }
+  nextTick(() => animateCards(first))
+}
 
-  if (dragNodeId.value) {
-    const nextOrder = currentNodeIds()
+function updateFloatingPosition(event: PointerEvent) {
+  const session = dragSession.value
+  if (!session) return
+  dragSession.value = {
+    ...session,
+    left: event.clientX - session.offsetX,
+    top: event.clientY - session.offsetY
+  }
+}
+
+async function onPointerUp(event: PointerEvent) {
+  const pending = pendingDrag.value
+  const session = dragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
+
+  if (session) {
+    updateFloatingPosition(event)
+    const first = measureCards()
+    const dropIndex = calculateDropIndex(
+      { clientX: event.clientX, clientY: event.clientY },
+      cardElements().map(element => element.getBoundingClientRect())
+    )
+    const nextOrder = insertDraggedCard(currentNodeIds(), session.nodeId, dropIndex)
     saveDashboardLayout(nextOrder)
     savedOrder.value = nextOrder
-    suppressNextClick(pending.nodeId)
+    suppressGeneratedClick()
+    endPointerDrag()
+    await nextTick()
+    animateCards(first)
+    return
   }
 
   endPointerDrag()
@@ -99,14 +172,15 @@ function onPointerUp(event: PointerEvent) {
 
 function onPointerCancel(event: PointerEvent) {
   const pending = pendingDrag.value
-  if (!pending || event.pointerId !== pending.pointerId) return
+  const session = dragSession.value
+  if ((!pending && !session) || event.pointerId !== (session?.pointerId ?? pending?.pointerId)) return
   endPointerDrag()
 }
 
 function endPointerDrag() {
   pendingDrag.value = null
-  dragNodeId.value = null
-  dragOffset.value = { x: 0, y: 0 }
+  dragSession.value = null
+  draftOrder.value = []
   removePointerListeners()
 }
 
@@ -116,53 +190,19 @@ function removePointerListeners() {
   window.removeEventListener('pointercancel', onPointerCancel)
 }
 
-function suppressNextClick(nodeId: string) {
-  suppressClickNodeId.value = nodeId
+function suppressGeneratedClick() {
+  suppressNextClick.value = true
   if (clickSuppressTimer) clearTimeout(clickSuppressTimer)
   clickSuppressTimer = setTimeout(() => {
-    suppressClickNodeId.value = null
+    suppressNextClick.value = false
   }, 250)
 }
 
-function onShellClick(event: MouseEvent, nodeId: string) {
-  if (suppressClickNodeId.value !== nodeId) return
+function onShellClick(event: MouseEvent) {
+  if (!suppressNextClick.value) return
   event.preventDefault()
   event.stopImmediatePropagation()
-  suppressClickNodeId.value = null
-}
-
-async function reorderForPointer(clientX: number, clientY: number) {
-  const draggedId = dragNodeId.value
-  if (!draggedId) return
-
-  const order = currentNodeIds()
-  const from = order.indexOf(draggedId)
-  if (from < 0) return
-
-  const to = insertionIndexForPointer(clientX, clientY, draggedId)
-  if (to === from) return
-
-  const first = measureCards()
-  order.splice(from, 1)
-  order.splice(to, 0, draggedId)
-  draftOrder.value = order
-  await nextTick()
-  animateCards(first, draggedId)
-}
-
-function insertionIndexForPointer(clientX: number, clientY: number, draggedId: string) {
-  const cards = cardElements()
-    .filter(element => element.dataset.nodeId !== draggedId)
-    .map(element => ({ id: element.dataset.nodeId ?? '', rect: element.getBoundingClientRect() }))
-    .sort((a, b) => Math.abs(a.rect.top - b.rect.top) > 8 ? a.rect.top - b.rect.top : a.rect.left - b.rect.left)
-
-  for (let index = 0; index < cards.length; index += 1) {
-    const rect = cards[index].rect
-    if (clientY < rect.top) return index
-    if (clientY <= rect.bottom) return clientX < rect.left + rect.width / 2 ? index : index + 1
-  }
-
-  return cards.length
+  suppressNextClick.value = false
 }
 
 function cardElements() {
@@ -177,10 +217,9 @@ function measureCards() {
   return positions
 }
 
-function animateCards(first: Map<string, DOMRect>, draggedId: string) {
+function animateCards(first: Map<string, DOMRect>) {
   cardElements().forEach(element => {
     const nodeId = element.dataset.nodeId ?? ''
-    if (nodeId === draggedId) return
     const before = first.get(nodeId)
     if (!before) return
     const after = element.getBoundingClientRect()
@@ -194,13 +233,16 @@ function animateCards(first: Map<string, DOMRect>, draggedId: string) {
   })
 }
 
-function dragStyle(nodeId: string) {
-  if (dragNodeId.value !== nodeId) return undefined
+const floatingStyle = computed(() => {
+  const session = dragSession.value
+  if (!session) return undefined
   return {
-    '--drag-x': `${dragOffset.value.x}px`,
-    '--drag-y': `${dragOffset.value.y}px`
+    left: `${session.left}px`,
+    top: `${session.top}px`,
+    width: `${session.width}px`,
+    height: `${session.height}px`
   }
-}
+})
 </script>
 
 <template>
@@ -219,24 +261,30 @@ function dragStyle(nodeId: string) {
       <button class="retry-btn" @click="store.fetchNodes()">{{ translate('dashboard.retry') }}</button>
     </div>
 
-    <div v-else ref="gridElement" class="grid-responsive node-grid" :class="{ 'is-dragging': dragNodeId }">
+    <div v-else ref="gridElement" class="grid-responsive node-grid" :class="{ 'is-dragging': dragSession }">
       <div
         v-for="node in displayedNodes"
         :key="node.id"
         class="node-card-shell"
-        :class="{ dragging: dragNodeId === node.id }"
         :data-node-id="node.id"
-        :style="dragStyle(node.id)"
         @pointerdown="onPointerDown($event, node.id)"
-        @click.capture="onShellClick($event, node.id)"
+        @click.capture="onShellClick"
       >
         <NodeCard
           :node="node"
           :history="store.history.value.get(node.id) || []"
           :details="store.details.value.get(node.id) || null"
-          :navigation-disabled="dragNodeId === node.id"
         />
       </div>
+    </div>
+
+    <div v-if="floatingNode && dragSession" class="floating-card-shell" :style="floatingStyle" aria-hidden="true">
+      <NodeCard
+        :node="floatingNode"
+        :history="store.history.value.get(floatingNode.id) || []"
+        :details="store.details.value.get(floatingNode.id) || null"
+        navigation-disabled
+      />
     </div>
   </div>
 </template>
@@ -259,26 +307,23 @@ function dragStyle(nodeId: string) {
   user-select: none;
 }
 
-.node-card-shell.dragging {
-  z-index: 50;
+.node-grid.is-dragging .node-card-shell {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.floating-card-shell {
+  position: fixed;
+  z-index: 1000;
   pointer-events: none;
-  transform: translate3d(var(--drag-x, 0), var(--drag-y, 0), 0) scale(1.025);
-  filter: drop-shadow(0 18px 28px color-mix(in srgb, var(--glow-accent) 48%, transparent));
+  transform: scale(1.02);
+  transform-origin: center;
+  filter: drop-shadow(0 18px 30px color-mix(in srgb, var(--glow-accent) 52%, transparent));
   cursor: grabbing;
 }
 
-.node-card-shell.dragging::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1px dashed var(--accent);
-  border-radius: var(--card-radius);
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.node-grid.is-dragging .node-card-shell:not(.dragging) {
-  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+.floating-card-shell :deep(.node-card) {
+  height: 100%;
+  margin: 0;
 }
 
 .skeleton-card {
