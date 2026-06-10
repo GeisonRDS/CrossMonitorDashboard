@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getPublicConfig } from '../api/dashboard'
-import { getBackgroundIdByPath } from '../config/backgrounds'
+import { getBackgroundImage } from '../utils/backgroundImageStore'
 
 export const VISUAL_SETTINGS_KEY = 'crossmonitor-dashboard-visual-settings'
 
@@ -43,6 +43,7 @@ const defaultSettings: VisualSettings = {
 const currentTheme = ref(defaultSettings.theme)
 const availableThemes = ref<string[]>([])
 const visualSettings = ref<VisualSettings>({ ...defaultSettings })
+let activeBackgroundObjectUrl = ''
 
 const defaultThemesList = [
   'glass-blue', 'neon-green', 'cyber-red', 'terminal-green', 'pixel-platformer',
@@ -51,15 +52,7 @@ const defaultThemesList = [
   'hacker-prompt', 'code-editor', 'black-white'
 ]
 
-function sanitizeImagePath(path: string): string {
-  if (!path) return ''
-  if (path.startsWith('http://') || path.startsWith('https://')) return ''
-  if (path.startsWith('/')) return path
-  return ''
-}
-
 function normalizeSettings(value: Partial<VisualSettings> | null | undefined): VisualSettings {
-  const bgId = getBackgroundIdByPath(value?.background?.imagePath ?? '')
   return {
     ...defaultSettings,
     ...value,
@@ -70,12 +63,38 @@ function normalizeSettings(value: Partial<VisualSettings> | null | undefined): V
     background: {
       ...defaultSettings.background,
       ...value?.background,
-      imagePath: bgId !== 'none' ? sanitizeImagePath(value?.background?.imagePath ?? '') : ''
+      imagePath: ''
     },
     metricCharts: {
       ...defaultSettings.metricCharts,
       ...value?.metricCharts
     }
+  }
+}
+
+function setBackgroundObjectUrl(url: string) {
+  if (activeBackgroundObjectUrl && activeBackgroundObjectUrl !== url) {
+    URL.revokeObjectURL(activeBackgroundObjectUrl)
+  }
+  activeBackgroundObjectUrl = url
+  document.documentElement.style.setProperty('--custom-bg-image', url ? `url(${url})` : 'none')
+}
+
+async function loadStoredBackgroundImage(settings: VisualSettings) {
+  if (settings.background.type !== 'image') {
+    setBackgroundObjectUrl('')
+    return
+  }
+
+  try {
+    const stored = await getBackgroundImage()
+    if (!stored) {
+      setBackgroundObjectUrl('')
+      return
+    }
+    setBackgroundObjectUrl(URL.createObjectURL(stored.blob))
+  } catch {
+    setBackgroundObjectUrl('')
   }
 }
 
@@ -100,8 +119,7 @@ function updateDocument(settings: VisualSettings) {
   document.documentElement.style.setProperty('--custom-bg-opacity', String(settings.background.opacity))
   document.documentElement.style.setProperty('--custom-bg-blur', `${settings.background.blur}px`)
   document.documentElement.style.setProperty('--custom-bg-overlay', String(settings.background.overlay))
-  const imgPath = sanitizeImagePath(settings.background.imagePath)
-  document.documentElement.style.setProperty('--custom-bg-image', imgPath ? `url(${imgPath})` : 'none')
+  void loadStoredBackgroundImage(settings)
 }
 
 export function useTheme() {

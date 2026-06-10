@@ -44,6 +44,29 @@ watch(() => visualSettings.value.refreshSeconds, (seconds) => {
   background: var(--bg-primary);
   z-index: -1;
   transition: background var(--transition-speed);
+  overflow: hidden;
+}
+
+.app-background::before,
+.app-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-background::before {
+  background-image: var(--custom-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--custom-bg-opacity, 0.8);
+  filter: blur(var(--custom-bg-blur, 0px));
+  transform: scale(1.04);
+}
+
+.app-background::after {
+  background: rgba(0, 0, 0, var(--custom-bg-overlay, 0));
 }
 
 .app-ambient {

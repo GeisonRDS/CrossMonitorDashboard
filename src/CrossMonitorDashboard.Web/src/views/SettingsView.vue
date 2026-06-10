@@ -1,14 +1,26 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useTheme, type VisualSettings, type MetricKey, type MetricChartType } from '../composables/useTheme'
 import { useI18n } from '../composables/useI18n'
-import { availableBackgrounds } from '../config/backgrounds'
 import ThemeSelector from '../components/ThemeSelector.vue'
 import { getThemes } from '../api/dashboard'
+import {
+  deleteBackgroundImage,
+  getBackgroundImage,
+  replaceBackgroundImage,
+  validateBackgroundImageBasics,
+  type BackgroundImageMetadata
+} from '../utils/backgroundImageStore'
 
 const { currentTheme, availableThemes, visualSettings, applyTheme, applySettings } = useTheme()
 const { translate, currentLocale, setLocale, availableLocales } = useI18n()
 const saved = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+const backgroundMetadata = ref<BackgroundImageMetadata | null>(null)
+const backgroundPreviewUrl = ref('')
+const backgroundError = ref('')
+const backgroundWarning = ref('')
+const backgroundInfo = ref('')
 const chartTypes: Array<{ value: MetricChartType; label: string; description: string }> = [
   { value: 'line-glow', label: 'line-glow', description: 'Linha com brilho' },
   { value: 'radial-gauge', label: 'radial-gauge', description: 'Donut radial' },
@@ -49,6 +61,11 @@ onMounted(async () => {
     ]
   }
   Object.assign(localSettings, JSON.parse(JSON.stringify(visualSettings.value)))
+  await loadSavedBackgroundPreview()
+})
+
+onUnmounted(() => {
+  revokeBackgroundPreview()
 })
 
 function selectTheme(theme: string) {
@@ -66,6 +83,90 @@ function saveSettings() {
 
 function saveImmediately() {
   saveSettings()
+}
+
+function revokeBackgroundPreview() {
+  if (backgroundPreviewUrl.value) {
+    URL.revokeObjectURL(backgroundPreviewUrl.value)
+    backgroundPreviewUrl.value = ''
+  }
+}
+
+async function loadSavedBackgroundPreview() {
+  backgroundError.value = ''
+  try {
+    const stored = await getBackgroundImage()
+    backgroundMetadata.value = stored?.metadata ?? null
+    revokeBackgroundPreview()
+    if (stored) {
+      backgroundPreviewUrl.value = URL.createObjectURL(stored.blob)
+    }
+  } catch {
+    backgroundError.value = translate('settings.backgroundLoadError')
+  }
+}
+
+function triggerImagePicker() {
+  fileInput.value?.click()
+}
+
+function backgroundMessage(key?: string) {
+  if (!key) return ''
+  const map: Record<string, string> = {
+    tooLarge: 'settings.backgroundTooLarge',
+    invalidFormat: 'settings.backgroundInvalidFormat',
+    loadFailed: 'settings.backgroundReadError',
+    storageUnsupported: 'settings.backgroundStorageUnsupported',
+    lowResolution: 'settings.backgroundLowResolution'
+  }
+  return translate((map[key] ?? key) as any)
+}
+
+async function onBackgroundFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  backgroundError.value = ''
+  backgroundWarning.value = ''
+  backgroundInfo.value = ''
+  if (!file) return
+
+  const basics = validateBackgroundImageBasics(file)
+  if (!basics.valid) {
+    backgroundError.value = backgroundMessage(basics.errorKey)
+    return
+  }
+
+  try {
+    const result = await replaceBackgroundImage(file)
+    backgroundMetadata.value = result.metadata
+    backgroundWarning.value = backgroundMessage(result.warningKey)
+    backgroundInfo.value = `${translate('settings.backgroundStored')} ${translate('settings.backgroundIndependent')}`
+    localSettings.background.type = 'image'
+    localSettings.background.imagePath = ''
+    applySettings(JSON.parse(JSON.stringify(localSettings)))
+    await loadSavedBackgroundPreview()
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 1300)
+  } catch (error: any) {
+    backgroundError.value = backgroundMessage(error?.message) || translate('settings.backgroundSaveError')
+  }
+}
+
+async function removeBackgroundImage() {
+  backgroundError.value = ''
+  backgroundWarning.value = ''
+  backgroundInfo.value = ''
+  try {
+    await deleteBackgroundImage()
+    backgroundMetadata.value = null
+    revokeBackgroundPreview()
+    applySettings(JSON.parse(JSON.stringify(localSettings)))
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 1300)
+  } catch {
+    backgroundError.value = translate('settings.backgroundSaveError')
+  }
 }
 </script>
 
@@ -165,18 +266,40 @@ function saveImmediately() {
           <option value="image">{{ translate('settings.image') }}</option>
         </select>
       </div>
-      <div v-if="localSettings.background.type === 'image'" class="setting-row">
+      <div v-if="localSettings.background.type === 'image'" class="setting-row stacked image-setting-row">
         <label>{{ translate('settings.imagePath') }}</label>
-        <select v-model="localSettings.background.imagePath" class="setting-input">
-          <option
-            v-for="bg in availableBackgrounds"
-            :key="bg.id"
-            :value="bg.path"
-          >
-            {{ currentLocale === 'pt' ? bg.namePt : bg.name }}
-          </option>
-        </select>
-        <p class="setting-hint">{{ translate('settings.backgroundHint', { folder: 'public/backgrounds/' }) }}</p>
+        <div class="background-picker">
+          <input
+            ref="fileInput"
+            class="file-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            :aria-label="translate('settings.selectImage')"
+            @change="onBackgroundFileSelected"
+          />
+          <div class="background-actions">
+            <button type="button" class="secondary-btn" @click="triggerImagePicker">
+              {{ backgroundMetadata ? translate('settings.changeImage') : translate('settings.selectImage') }}
+            </button>
+            <button v-if="backgroundMetadata" type="button" class="secondary-btn danger" @click="removeBackgroundImage">
+              {{ translate('settings.removeImage') }}
+            </button>
+          </div>
+          <div class="background-current">
+            <span class="text-mono">{{ translate('settings.currentImage') }}</span>
+            <strong>{{ backgroundMetadata?.name || translate('settings.noImageSelected') }}</strong>
+          </div>
+          <img
+            v-if="backgroundPreviewUrl"
+            class="background-preview"
+            :src="backgroundPreviewUrl"
+            :alt="translate('settings.backgroundPreview')"
+          />
+          <p class="setting-hint">{{ translate('settings.backgroundUploadHint') }}</p>
+          <p v-if="backgroundWarning" class="setting-message warning">{{ backgroundWarning }}</p>
+          <p v-if="backgroundInfo" class="setting-message success">{{ backgroundInfo }}</p>
+          <p v-if="backgroundError" class="setting-message error">{{ backgroundError }}</p>
+        </div>
       </div>
       <div class="setting-row">
         <label>{{ translate('settings.opacity', { value: Math.round(localSettings.background.opacity * 100) }) }}</label>
@@ -319,6 +442,113 @@ function saveImmediately() {
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.65rem;
+}
+
+.image-setting-row {
+  align-items: flex-start;
+}
+
+.background-picker {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.background-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.secondary-btn {
+  padding: 0.64rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed), transform var(--transition-speed);
+}
+
+.secondary-btn:hover,
+.secondary-btn:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--glow-accent);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.secondary-btn.danger:hover,
+.secondary-btn.danger:focus-visible {
+  border-color: var(--critical);
+  box-shadow: 0 0 16px var(--glow-critical);
+}
+
+.background-current {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--metric-tile-bg);
+}
+
+.background-current span {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.background-current strong {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.background-preview {
+  width: min(280px, 100%);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 0 16px var(--glow-accent);
+}
+
+.setting-message {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  border: 1px solid var(--border-color);
+}
+
+.setting-message.warning {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 9%, var(--bg-card));
+}
+
+.setting-message.success {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-card));
+}
+
+.setting-message.error {
+  color: var(--critical);
+  border-color: color-mix(in srgb, var(--critical) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--critical) 9%, var(--bg-card));
 }
 
 .setting-slider {
