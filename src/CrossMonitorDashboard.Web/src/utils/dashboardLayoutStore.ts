@@ -1,6 +1,12 @@
 import type { NodeSummary } from '../types/dashboard'
 
 export const dashboardLayoutStorageKey = 'crossmonitor-dashboard-card-order'
+const dashboardLayoutVersion = 1
+
+export interface DashboardLayout {
+  version: number
+  cardOrder: string[]
+}
 
 function sanitizeOrder(order: unknown): string[] {
   if (!Array.isArray(order)) return []
@@ -34,7 +40,10 @@ export function getDashboardLayout(): string[] {
 
   try {
     const raw = localStorage.getItem(dashboardLayoutStorageKey)
-    return raw ? sanitizeOrder(JSON.parse(raw)) : []
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+    return sanitizeOrder(Array.isArray(parsed) ? parsed : parsed?.cardOrder)
   } catch {
     return []
   }
@@ -42,7 +51,11 @@ export function getDashboardLayout(): string[] {
 
 export function saveDashboardLayout(layout: string[]) {
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem(dashboardLayoutStorageKey, JSON.stringify(sanitizeOrder(layout)))
+  const payload: DashboardLayout = {
+    version: dashboardLayoutVersion,
+    cardOrder: sanitizeOrder(layout)
+  }
+  localStorage.setItem(dashboardLayoutStorageKey, JSON.stringify(payload))
 }
 
 export function resetDashboardLayout() {

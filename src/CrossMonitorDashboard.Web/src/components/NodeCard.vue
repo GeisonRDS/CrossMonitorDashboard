@@ -7,7 +7,7 @@ import { useI18n } from '../composables/useI18n'
 import MiniChart from './MiniChart.vue'
 import { formatNetworkRateMBps, networkChartSeries, sanitizeNetworkRateMBps } from '../utils/networkChart'
 
-const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null; editing?: boolean }>()
+const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null; navigationDisabled?: boolean }>()
 const router = useRouter()
 const { currentTheme, visualSettings } = useTheme()
 const { translate } = useI18n()
@@ -161,12 +161,12 @@ const lastUpdate = computed(() => {
 })
 
 function goToDetails() {
-  if (props.editing) return
+  if (props.navigationDisabled) return
   router.push(`/nodes/${props.node.id}`)
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (props.editing) return
+  if (props.navigationDisabled) return
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     goToDetails()
@@ -177,12 +177,12 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <article
     class="node-card glass-card fade-in"
-    :class="[statusClass, { offline: !node.online, editing }]"
+    :class="[statusClass, { offline: !node.online, dragging: navigationDisabled }]"
     :style="cardStyle"
     role="button"
-    :tabindex="editing ? -1 : 0"
-    :aria-disabled="editing ? 'true' : 'false'"
-    :aria-label="editing ? translate('dashboard.layoutCardLocked', { name: node.name }) : translate('dashboard.openDetails', { name: node.name })"
+    :tabindex="navigationDisabled ? -1 : 0"
+    :aria-disabled="navigationDisabled ? 'true' : 'false'"
+    :aria-label="translate('dashboard.openDetails', { name: node.name })"
     @click="goToDetails"
     @keydown="handleKeydown"
   >
@@ -251,10 +251,8 @@ function handleKeydown(event: KeyboardEvent) {
   box-shadow: var(--card-shadow), 0 0 18px color-mix(in srgb, var(--node-glow) 55%, transparent);
 }
 
-.node-card.editing {
-  cursor: grab;
-  outline: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
-  outline-offset: -0.35rem;
+.node-card.dragging {
+  cursor: grabbing;
   user-select: none;
 }
 

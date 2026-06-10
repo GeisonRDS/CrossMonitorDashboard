@@ -56,10 +56,37 @@ test('invalid localStorage is safe', () => {
   assert.deepEqual(getDashboardLayout(), [])
 })
 
-test('save stores only string ids once', () => {
+test('legacy array layout is still readable', () => {
+  localStorage.setItem(dashboardLayoutStorageKey, '["charlie","alpha"]')
+
+  assert.deepEqual(getDashboardLayout(), ['charlie', 'alpha'])
+})
+
+test('save stores versioned card order with only string ids once', () => {
   saveDashboardLayout(['bravo', 'alpha', 'bravo', 10])
 
-  assert.deepEqual(JSON.parse(localStorage.getItem(dashboardLayoutStorageKey)), ['bravo', 'alpha'])
+  assert.deepEqual(JSON.parse(localStorage.getItem(dashboardLayoutStorageKey)), {
+    version: 1,
+    cardOrder: ['bravo', 'alpha']
+  })
+})
+
+test('new order is saved only when saveDashboardLayout is called', () => {
+  const intermediateOrder = ['bravo', 'alpha', 'charlie']
+  assert.equal(localStorage.getItem(dashboardLayoutStorageKey), null)
+
+  saveDashboardLayout(intermediateOrder)
+
+  assert.deepEqual(getDashboardLayout(), intermediateOrder)
+})
+
+test('polling with a refreshed node list preserves saved order', () => {
+  const refreshedNodes = nodes.map(node => ({ ...node, cpuUsagePercent: Math.random() }))
+  saveDashboardLayout(['charlie', 'alpha'])
+
+  const ordered = applyCardOrder(refreshedNodes, getDashboardLayout())
+
+  assert.deepEqual(ordered.map(node => node.id), ['charlie', 'alpha', 'bravo'])
 })
 
 test('reset removes only dashboard layout key', () => {

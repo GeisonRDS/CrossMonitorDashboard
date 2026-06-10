@@ -128,17 +128,7 @@ export const pt = {
   dashboard: {
     failedToLoad: 'Falha ao carregar nós: {error}',
     retry: 'Tentar novamente',
-    editLayout: 'Editar layout',
-    saveLayout: 'Salvar layout',
-    cancelLayout: 'Cancelar',
-    restoreDefaultLayout: 'Restaurar padrão',
-    layoutHint: 'Clique em um card para abrir detalhes, ou edite o layout para reordenar os cards.',
-    layoutEditing: 'Arraste os cards para reordenar. A navegação dos cards fica desativada até salvar ou cancelar.',
     openDetails: 'Abrir detalhes de {name}',
-    layoutCardLocked: 'Card {name} bloqueado enquanto a edição de layout está ativa',
-    moveCard: 'Mover card {name}',
-    moveBefore: 'Antes',
-    moveAfter: 'Depois',
   },
   theme: {
     select: 'Selecionar tema',
