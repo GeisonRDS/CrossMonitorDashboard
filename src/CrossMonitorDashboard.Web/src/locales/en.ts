@@ -128,6 +128,17 @@ export const en = {
   dashboard: {
     failedToLoad: 'Failed to load nodes: {error}',
     retry: 'Retry',
+    editLayout: 'Edit layout',
+    saveLayout: 'Save layout',
+    cancelLayout: 'Cancel',
+    restoreDefaultLayout: 'Restore default',
+    layoutHint: 'Click a card to open details, or edit the layout to reorder cards.',
+    layoutEditing: 'Drag cards to reorder. Card navigation is disabled until you save or cancel.',
+    openDetails: 'Open details for {name}',
+    layoutCardLocked: '{name} card is locked while layout editing is active',
+    moveCard: 'Move {name} card',
+    moveBefore: 'Before',
+    moveAfter: 'After',
   },
   theme: {
     select: 'Select theme',

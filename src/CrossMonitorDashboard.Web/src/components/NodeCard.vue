@@ -7,7 +7,7 @@ import { useI18n } from '../composables/useI18n'
 import MiniChart from './MiniChart.vue'
 import { formatNetworkRateMBps, networkChartSeries, sanitizeNetworkRateMBps } from '../utils/networkChart'
 
-const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null }>()
+const props = defineProps<{ node: NodeSummary; history?: HistoryDataPoint[]; details?: NodeDetails | null; editing?: boolean }>()
 const router = useRouter()
 const { currentTheme, visualSettings } = useTheme()
 const { translate } = useI18n()
@@ -161,10 +161,12 @@ const lastUpdate = computed(() => {
 })
 
 function goToDetails() {
+  if (props.editing) return
   router.push(`/nodes/${props.node.id}`)
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (props.editing) return
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     goToDetails()
@@ -175,11 +177,12 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <article
     class="node-card glass-card fade-in"
-    :class="[statusClass, { offline: !node.online }]"
+    :class="[statusClass, { offline: !node.online, editing }]"
     :style="cardStyle"
     role="button"
-    tabindex="0"
-    :aria-label="`Open details for ${node.name}`"
+    :tabindex="editing ? -1 : 0"
+    :aria-disabled="editing ? 'true' : 'false'"
+    :aria-label="editing ? translate('dashboard.layoutCardLocked', { name: node.name }) : translate('dashboard.openDetails', { name: node.name })"
     @click="goToDetails"
     @keydown="handleKeydown"
   >
@@ -246,6 +249,13 @@ function handleKeydown(event: KeyboardEvent) {
   overflow: hidden;
   border-color: color-mix(in srgb, var(--node-tone) 32%, var(--border-color));
   box-shadow: var(--card-shadow), 0 0 18px color-mix(in srgb, var(--node-glow) 55%, transparent);
+}
+
+.node-card.editing {
+  cursor: grab;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: -0.35rem;
+  user-select: none;
 }
 
 .node-card::before {
