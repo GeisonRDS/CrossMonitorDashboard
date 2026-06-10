@@ -38,14 +38,32 @@ export function insertDraggedCard(order: string[], draggedId: string, index: num
 
 export function calculateDropIndex(pointer: PointerPosition, rects: RectLike[]) {
   const sortedRects = [...rects].sort((a, b) => Math.abs(a.top - b.top) > 8 ? a.top - b.top : a.left - b.left)
+  const rows: { startIndex: number; top: number; bottom: number; rects: RectLike[] }[] = []
 
-  for (let index = 0; index < sortedRects.length; index += 1) {
-    const rect = sortedRects[index]
-    const centerY = rect.top + rect.height / 2
-    const centerX = rect.left + rect.width / 2
+  sortedRects.forEach((rect, index) => {
+    const bottom = rect.top + rect.height
+    const currentRow = rows.at(-1)
+    if (!currentRow || Math.abs(rect.top - currentRow.top) > 10) {
+      rows.push({ startIndex: index, top: rect.top, bottom, rects: [rect] })
+      return
+    }
 
-    if (pointer.clientY < centerY) return index
-    if (pointer.clientY <= rect.top + rect.height && pointer.clientX < centerX) return index
+    currentRow.bottom = Math.max(currentRow.bottom, bottom)
+    currentRow.rects.push(rect)
+  })
+
+  for (const row of rows) {
+    if (pointer.clientY < row.top) return row.startIndex
+
+    if (pointer.clientY <= row.bottom) {
+      for (let rowIndex = 0; rowIndex < row.rects.length; rowIndex += 1) {
+        const rect = row.rects[rowIndex]
+        const centerX = rect.left + rect.width / 2
+        if (pointer.clientX < centerX) return row.startIndex + rowIndex
+      }
+
+      return row.startIndex + row.rects.length
+    }
   }
 
   return sortedRects.length

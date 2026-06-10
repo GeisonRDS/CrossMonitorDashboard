@@ -154,6 +154,60 @@ test('drop in middle of responsive grid inserts at visual index', () => {
   assert.equal(calculateDropIndex({ clientX: 310, clientY: 150 }, rects), 1)
 })
 
+test('linear grid drop uses horizontal center instead of defaulting to first card', () => {
+  const rects = [
+    { left: 0, top: 0, width: 100, height: 100 },
+    { left: 110, top: 0, width: 100, height: 100 },
+    { left: 220, top: 0, width: 100, height: 100 },
+  ]
+
+  assert.equal(calculateDropIndex({ clientX: 10, clientY: 20 }, rects), 0)
+  assert.equal(calculateDropIndex({ clientX: 160, clientY: 20 }, rects), 2)
+  assert.equal(calculateDropIndex({ clientX: 330, clientY: 20 }, rects), 3)
+})
+
+test('two column grid drop returns visual row-major index', () => {
+  const rects = [
+    { left: 0, top: 0, width: 100, height: 100 },
+    { left: 110, top: 0, width: 100, height: 100 },
+    { left: 0, top: 110, width: 100, height: 100 },
+    { left: 110, top: 110, width: 100, height: 100 },
+  ]
+
+  assert.equal(calculateDropIndex({ clientX: -10, clientY: -10 }, rects), 0)
+  assert.equal(calculateDropIndex({ clientX: 80, clientY: 20 }, rects), 1)
+  assert.equal(calculateDropIndex({ clientX: 220, clientY: 20 }, rects), 2)
+  assert.equal(calculateDropIndex({ clientX: 10, clientY: 120 }, rects), 2)
+  assert.equal(calculateDropIndex({ clientX: 220, clientY: 120 }, rects), 4)
+})
+
+test('dragging B after C reinserts B at index from grid without B', () => {
+  const temporaryOrder = removeDraggedCard(['alpha', 'bravo', 'charlie', 'delta'], 'bravo')
+  const finalOrder = insertDraggedCard(temporaryOrder, 'bravo', 2)
+
+  assert.deepEqual(finalOrder, ['alpha', 'charlie', 'bravo', 'delta'])
+})
+
+test('dragging C to the beginning reinserts C at index zero', () => {
+  const temporaryOrder = removeDraggedCard(['alpha', 'bravo', 'charlie', 'delta'], 'charlie')
+  const finalOrder = insertDraggedCard(temporaryOrder, 'charlie', 0)
+
+  assert.deepEqual(finalOrder, ['charlie', 'alpha', 'bravo', 'delta'])
+})
+
+test('drop fallback below visible cards inserts at the end, not the beginning', () => {
+  const rects = [
+    { left: 0, top: 0, width: 100, height: 100 },
+    { left: 110, top: 0, width: 100, height: 100 },
+  ]
+
+  assert.equal(calculateDropIndex({ clientX: 20, clientY: 500 }, rects), 2)
+})
+
+test('drop index with no visible grid cards is zero', () => {
+  assert.equal(calculateDropIndex({ clientX: 20, clientY: 20 }, []), 0)
+})
+
 test('pointer move helpers do not save localStorage', () => {
   removeDraggedCard(['alpha', 'bravo'], 'alpha')
   calculateDropIndex({ clientX: 100, clientY: 100 }, [{ left: 0, top: 0, width: 200, height: 120 }])
